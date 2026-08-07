@@ -42,9 +42,22 @@
         ]),
       ]),
       // Currency
-      h("div.field", [
+      h("div.field.mb-16", [
         h("label", "💱 " + t("settings.currency")),
         ui.select([{ value: "USD", label: "USD $" }, { value: "MXN", label: "MXN MX$" }, { value: "EUR", label: "EUR €" }], store.data.settings.currency || "USD", (v) => { store.setSetting("currency", v); ui.toast(t("common.saved"), "success"); window.CRM.app.rerender(); }, { style: "max-width:200px" }),
+      ]),
+      // Session
+      sessionRow(),
+    ]);
+  }
+
+  function sessionRow() {
+    const me = S().currentUser();
+    return h("div.field", [
+      h("label", "🔐 " + t("auth.loggedInAs")),
+      h("div.flex.between", { style: { gap: "10px", padding: "8px 10px", background: "var(--bg-sunken)", borderRadius: "10px" } }, [
+        h("div.flex", { style: { gap: "10px" } }, [me ? ui.avatar(me) : null, h("div", [h("strong", me ? me.name : "—"), h("div.faint", { style: { fontSize: "12px" } }, me ? me.email : "")])]),
+        h("button.btn.btn-sm.btn-danger", { onclick: () => window.CRM.auth.logout() }, "⏻ " + t("auth.signOut")),
       ]),
     ]);
   }
@@ -72,15 +85,21 @@
   }
   function editMember(existing) {
     const store = S();
-    const m = existing ? Object.assign({}, existing) : { name: "", email: "", role: "sales" };
+    const m = existing ? Object.assign({}, existing) : { name: "", email: "", role: "sales", password: "" };
     const modal = ui.modal({ title: existing ? t("common.edit") : t("settings.addMember"), icon: "👤" });
     modal.setBody(h("div.form-grid", [
       ui.field(t("settings.memberName") + " *", ui.input(m.name, { oninput: (e) => (m.name = e.target.value) }), { full: true }),
-      ui.field(t("settings.memberEmail"), ui.input(m.email, { oninput: (e) => (m.email = e.target.value) })),
+      ui.field(t("settings.memberEmail") + " *", ui.input(m.email, { type: "email", oninput: (e) => (m.email = e.target.value) })),
       ui.field(t("settings.memberRole"), ui.select(["admin", "manager", "sales"].map((r) => ({ value: r, label: t("roles." + r) })), m.role, (v) => (m.role = v))),
+      ui.field("🔑 " + t("settings.password"), ui.input(m.password || "", { type: "text", oninput: (e) => (m.password = e.target.value), placeholder: "inflate2025" }), { full: true, hint: t("settings.passwordHint") }),
     ]));
     modal.setFooter([h("button.btn", { onclick: modal.close }, t("common.cancel")),
-      h("button.btn.btn-primary", { onclick: () => { if (!m.name) { ui.toast(t("common.required"), "error"); return; } if (existing) store.updateMember(existing.id, m); else store.addMember(m); modal.close(); window.CRM.app.rerender(); } }, t("common.save"))]);
+      h("button.btn.btn-primary", { onclick: () => {
+        if (!m.name || !m.email) { ui.toast(t("common.required"), "error"); return; }
+        if (!m.password) m.password = "inflate2025";
+        if (existing) store.updateMember(existing.id, m); else store.addMember(m);
+        modal.close(); window.CRM.app.rerender();
+      } }, t("common.save"))]);
   }
 
   function stagesCard() {

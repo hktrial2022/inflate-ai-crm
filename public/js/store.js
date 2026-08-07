@@ -18,10 +18,14 @@
 
   // Team members are needed so deals/contacts can be assigned.
   // These are editable in Settings; contacts/companies/deals stay EMPTY.
+  // NOTE: passwords are stored client-side for a local access gate — this is a
+  // presentation-level login, not production security. For real auth, connect
+  // Supabase Auth (see public/js/supabase-adapter.example.js).
+  const DEFAULT_PASSWORD = "inflate2025";
   const DEFAULT_TEAM = [
-    { id: "u_me",  name: "You",          email: "you@inflate.ai",   role: "admin", color: "#6d5efc" },
-    { id: "u_ana", name: "Ana Ruiz",     email: "ana@inflate.ai",   role: "sales", color: "#0ea5e9" },
-    { id: "u_leo", name: "Leo Martins",  email: "leo@inflate.ai",   role: "sales", color: "#16a34a" },
+    { id: "u_me",  name: "You",          email: "you@inflate.ai",   role: "admin", color: "#6d5efc", password: DEFAULT_PASSWORD },
+    { id: "u_ana", name: "Ana Ruiz",     email: "ana@inflate.ai",   role: "sales", color: "#0ea5e9", password: DEFAULT_PASSWORD },
+    { id: "u_leo", name: "Leo Martins",  email: "leo@inflate.ai",   role: "sales", color: "#16a34a", password: DEFAULT_PASSWORD },
   ];
 
   function emptyData() {
@@ -58,6 +62,13 @@
   function uid(prefix) { return (prefix || "id") + "_" + (data.seq++).toString(36) + Math.random().toString(36).slice(2, 6); }
   function nowISO() { return new Date().toISOString(); }
 
+  // Currently signed-in team member (set by auth.js via localStorage 'crm_session').
+  function currentUser() {
+    const id = localStorage.getItem("crm_session");
+    return byId("team", id) || data.team[0] || null;
+  }
+  function currentUserId() { const u = currentUser(); return u ? u.id : null; }
+
   // ---------- Generic collection helpers ----------
   function all(coll) { return data[coll].slice(); }
   function byId(coll, id) { return data[coll].find((x) => x.id === id); }
@@ -67,7 +78,7 @@
     const rec = Object.assign({
       id: uid("c"), firstName: "", lastName: "", email: "", phone: "", companyId: null,
       jobTitle: "", source: "website", tags: [], customFields: {}, notes: "",
-      ownerId: data.team[0] ? data.team[0].id : null, createdAt: nowISO(), lastActivityAt: nowISO(),
+      ownerId: currentUserId(), createdAt: nowISO(), lastActivityAt: nowISO(),
     }, c);
     data.contacts.push(rec); emit(); return rec;
   }
@@ -100,7 +111,7 @@
   function addDeal(d) {
     const rec = Object.assign({
       id: uid("d"), title: "", contactId: null, companyId: null, value: 0, probability: 20,
-      stage: firstOpenStage(), ownerId: data.team[0] ? data.team[0].id : null,
+      stage: firstOpenStage(), ownerId: currentUserId(),
       status: "open", stageEnteredAt: nowISO(), createdAt: nowISO(),
     }, d);
     data.deals.push(rec); emit(); return rec;
@@ -217,7 +228,7 @@
   function lostDeals() { return data.deals.filter((d) => d.status === "lost"); }
 
   window.CRM.store = {
-    onChange, uid, nowISO,
+    onChange, uid, nowISO, currentUser, currentUserId,
     get data() { return data; },
     all, byId,
     addContact, updateContact, deleteContact,

@@ -48,7 +48,22 @@
   const cloud = {
     auth: sb.auth,
     async signIn(email, password) { return sb.auth.signInWithPassword({ email, password }); },
+    async signUp(email, password, meta) { return sb.auth.signUp({ email, password, options: { data: meta || {} } }); },
     async signOut() { return sb.auth.signOut(); },
+
+    // Google / Apple sign-in. Once you enable the provider in the Supabase
+    // dashboard (Authentication → Providers) and set redirect URLs, the
+    // login screen's buttons call this automatically (see js/auth.js →
+    // loginWithProvider). See docs/AUTH.md for the 5-minute setup.
+    async signInWithOAuth(provider) {
+      // provider: 'google' | 'apple'
+      return sb.auth.signInWithOAuth({
+        provider: provider,
+        options: { redirectTo: window.location.origin },
+      });
+    },
+    async getSession() { return sb.auth.getSession(); },
+    onAuthChange(cb) { return sb.auth.onAuthStateChange(cb); },
 
     // CONTACTS (template — replicate for other resources)
     async listContacts() {

@@ -53,16 +53,19 @@
 
   function buildUserChip() {
     const chip = document.getElementById("userChip");
-    const me = store.data.team[0];
+    const me = store.currentUser();
     ui.clear(chip);
     if (me) chip.appendChild(h("div.flex", { style: { gap: "10px", width: "100%" } }, [
-      ui.avatar(me),
-      h("div", { style: { lineHeight: 1.2, minWidth: 0 } }, [
-        h("div", { style: { color: "#fff", fontWeight: 600, fontSize: "13px" } }, me.name),
-        h("div", { style: { color: "var(--sidebar-fg-dim)", fontSize: "11px" } }, t("roles." + me.role)),
+      h("div.flex", { style: { gap: "10px", minWidth: 0, flex: 1, cursor: "pointer" }, onclick: () => (location.hash = "#/settings") }, [
+        ui.avatar(me),
+        h("div", { style: { lineHeight: 1.2, minWidth: 0 } }, [
+          h("div", { style: { color: "#fff", fontWeight: 600, fontSize: "13px" } }, me.name),
+          h("div", { style: { color: "var(--sidebar-fg-dim)", fontSize: "11px" } }, t("roles." + me.role)),
+        ]),
       ]),
+      h("button.icon-btn.logout-btn", { title: t("settings.signOut"), onclick: (e) => { e.stopPropagation(); window.CRM.auth.logout(); } }, "⏻"),
     ]));
-    chip.onclick = () => (location.hash = "#/settings");
+    chip.onclick = null;
   }
 
   function applyChrome() {
@@ -99,11 +102,20 @@
   }
 
   function init() {
-    // theme
+    // theme (applied first so the login screen is themed too)
     const savedTheme = localStorage.getItem("crm_theme") || "light";
     document.documentElement.setAttribute("data-theme", savedTheme);
-    document.getElementById("themeToggle").textContent = savedTheme === "dark" ? "☀️" : "🌙";
     window.CRM.i18n.setLang(window.CRM.i18n.getLang());
+
+    // ---- Auth gate: no session → show login screen and stop here ----
+    if (!window.CRM.auth.isLoggedIn()) {
+      document.getElementById("app").style.display = "none";
+      window.CRM.auth.showLogin();
+      return;
+    }
+    document.getElementById("app").style.display = "flex";
+    document.getElementById("login-root").style.display = "none";
+    document.getElementById("themeToggle").textContent = savedTheme === "dark" ? "☀️" : "🌙";
 
     applyChrome();
 

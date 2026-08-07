@@ -20,8 +20,11 @@ It runs **100% locally** with **zero build step and zero dependencies** — just
 - **⚡ Workflow Automation** — visual node-based builder with triggers (form submitted, tag added, appointment booked, payment received, deal stage changed), actions (email/SMS, wait, assign task, move stage, notify team), if/else conditions, and starter templates (nurture, onboarding, deal recovery).
 - **📅 Scheduling** — booking page with a live calendar, **round-robin** assignment, Google/Outlook sync placeholders, and SMS/email reminder settings.
 
+**Access**
+- 🔐 **Login & sign-up** — branded bilingual login screen with email/password, self-service registration, and **Google / Apple** buttons (activated by connecting Supabase Auth — see [docs/AUTH.md](docs/AUTH.md)). Sign out from the sidebar. Default demo password: `inflate2025`.
+
 **Everywhere**
-- 🌐 **Bilingual** — instant EN ⇄ ES toggle in Settings *and* the top bar; every label, empty-state and date is localized.
+- 🌐 **Bilingual** — instant EN ⇄ ES toggle on the login screen, in Settings *and* the top bar; every label, empty-state and date is localized.
 - 🌙 **Light / Dark** themes. 💱 Multi-currency (USD / MXN / EUR).
 - 💾 Local-first storage + **JSON export/import** for backup or migration.
 
