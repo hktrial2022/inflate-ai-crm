@@ -50,6 +50,21 @@
     }
     localStorage.removeItem("crm_pending_join");
 
+    // The local cache (store.js) lives under one browser-wide localStorage
+    // key, with no natural per-account boundary. If the account we just
+    // resolved isn't the same one this browser last synced (a different
+    // sub-account signing in, or a brand-new sign-up sharing this browser
+    // with an earlier test account), wipe the cached tenant collections
+    // first — otherwise stale contacts/deals/etc. from that other account
+    // would bleed into this one until every row happened to be overwritten.
+    // Super admins have no account_id of their own, so key off their user id.
+    const ACCOUNT_TAG_KEY = "crm_last_account_tag";
+    const thisAccountTag = profile.accountId ? "acct:" + profile.accountId : "super:" + profile.id;
+    if (localStorage.getItem(ACCOUNT_TAG_KEY) !== thisAccountTag) {
+      store.resetTenantData();
+      localStorage.setItem(ACCOUNT_TAG_KEY, thisAccountTag);
+    }
+
     const existing = store.byId("team", profile.id);
     if (existing) Object.assign(existing, profile); else store.data.team.push(profile);
     localStorage.setItem(SESSION_KEY, profile.id);
