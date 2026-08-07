@@ -1,0 +1,304 @@
+/* ============================================================
+   i18n — English / Spanish dictionaries + helpers
+   Usage: t('nav.contacts')  |  window.CRM.i18n
+   ============================================================ */
+(function () {
+  window.CRM = window.CRM || {};
+
+  const DICT = {
+    en: {
+      app: { tagline: "CRM", name: "Inflate AI CRM" },
+      nav: {
+        main: "Main", crm: "CRM", growth: "Growth",
+        dashboard: "Dashboard", contacts: "Contacts", companies: "Companies",
+        pipeline: "Pipeline", inbox: "Inbox", workflows: "Workflows",
+        scheduling: "Scheduling", settings: "Settings",
+      },
+      common: {
+        search: "Search…", searchEverything: "Search contacts, companies, deals…",
+        add: "Add", edit: "Edit", save: "Save", cancel: "Cancel", delete: "Delete",
+        create: "Create", update: "Update", close: "Close", confirm: "Confirm",
+        all: "All", none: "None", name: "Name", email: "Email", phone: "Phone",
+        company: "Company", noResults: "No results found", loading: "Loading…",
+        actions: "Actions", back: "Back", filter: "Filter", sort: "Sort",
+        newest: "Newest", oldest: "Oldest", today: "Today", yesterday: "Yesterday",
+        daysAgo: "{n}d ago", never: "Never", unassigned: "Unassigned",
+        required: "Required", optional: "optional", saved: "Saved", deleted: "Deleted",
+        created: "Created", updated: "Updated", assignedTo: "Assigned to",
+        owner: "Owner", tags: "Tags", notes: "Notes", source: "Source",
+        value: "Value", date: "Date", status: "Status", type: "Type",
+        addTag: "Type and press Enter…", selectOne: "Select…", viewAll: "View all",
+        deleteConfirm: "This can't be undone. Delete permanently?",
+      },
+      dashboard: {
+        title: "Executive Dashboard", sub: "Your growth engine at a glance.",
+        totalPipeline: "Pipeline Value", openDeals: "Open Deals",
+        wonValue: "Closed Won (value)", winRate: "Win Rate",
+        avgClose: "Avg. Time to Close", newLeads: "New Leads (30d)",
+        conversionFunnel: "Conversion Funnel", pipelineByStage: "Pipeline Value by Stage",
+        leadSources: "Lead Sources", leadsTrend: "New Leads — Weekly Trend",
+        wonVsLost: "Won vs Lost (value)", days: "days", deals: "deals",
+        noData: "No data yet", noDataSub: "Add contacts and deals to see your analytics come alive.",
+        conv: "conv.", won: "Won", lost: "Lost", thisMonth: "this month",
+      },
+      contacts: {
+        title: "Contacts", sub: "Your centralized relationship database.",
+        newContact: "New Contact", editContact: "Edit Contact",
+        firstName: "First name", lastName: "Last name", jobTitle: "Job title",
+        lastActivity: "Last activity", created: "Created", customFields: "Custom fields",
+        pendingActivities: "Pending activities", interactionHistory: "Interaction history",
+        noContacts: "No contacts yet", noContactsSub: "Add your first lead to start building your pipeline. Your database is empty and ready for real data.",
+        addActivity: "Add activity", addNote: "Add note", logActivity: "Log activity",
+        allSources: "All sources", allOwners: "All owners", allTags: "All tags",
+        deals: "Deals", noPending: "No pending activities", noHistory: "No interactions logged yet.",
+        addCustomField: "Add custom field", fieldName: "Field name", fieldValue: "Value",
+      },
+      companies: {
+        title: "Companies", sub: "Organizations you're building relationships with.",
+        newCompany: "New Company", editCompany: "Edit Company",
+        industry: "Industry", website: "Website", size: "Company size",
+        people: "People", associatedContacts: "Associated contacts",
+        dealHistory: "Deal history", noCompanies: "No companies yet",
+        noCompaniesSub: "Create a company to group contacts and track deals at the org level.",
+        contactsCount: "{n} contacts", dealsCount: "{n} deals", totalValue: "Total value",
+        noPeople: "No people linked to this company yet.", noDeals: "No deals for this company yet.",
+      },
+      pipeline: {
+        title: "Sales Pipeline", sub: "Drag deals across stages to move them forward.",
+        newDeal: "New Deal", editDeal: "Edit Deal", dealTitle: "Deal title",
+        probability: "Probability", stage: "Stage", daysInStage: "{n}d in stage",
+        markWon: "Mark Won", markLost: "Mark Lost", reopen: "Reopen",
+        noDeals: "Pipeline is empty", noDealsSub: "Add your first deal to start tracking revenue. No dummy data here — build it real.",
+        wonBanner: "🎉 Closed Won", lostBanner: "Closed Lost", value: "Deal value",
+        totalWeighted: "Weighted", movedTo: "Deal moved to {stage}",
+      },
+      inbox: {
+        title: "Conversations", sub: "Every channel, one thread per contact.",
+        noThreads: "No conversations yet", noThreadsSub: "Conversations appear here as you log messages with contacts across channels.",
+        internalNote: "Internal note", quickReplies: "Quick replies / templates",
+        reply: "Reply", send: "Send", typeMessage: "Type a message…",
+        typeNote: "Type an internal note (only your team sees this)…",
+        assignConversation: "Assign", channels: "Channels", selectThread: "Select a conversation",
+        selectThreadSub: "Choose a contact on the left to view the full history.",
+        template1: "Hi {name}, thanks for reaching out! When works for a quick call?",
+        template2: "Following up on our proposal — happy to answer any questions.",
+        template3: "Great chatting today! I'll send next steps shortly.",
+      },
+      channels: { email: "Email", sms: "SMS", whatsapp: "WhatsApp", instagram: "Instagram DM", messenger: "Messenger", webchat: "Web Chat", call: "Call" },
+      workflows: {
+        title: "Workflow Automation", sub: "Build the brain of your CRM with triggers, actions and logic.",
+        newWorkflow: "New Workflow", editWorkflow: "Edit Workflow", workflowName: "Workflow name",
+        trigger: "Trigger", action: "Action", condition: "Condition (If / Else)", delay: "Wait / Delay",
+        addStep: "Add step", active: "Active", paused: "Paused",
+        noWorkflows: "No workflows yet", noWorkflowsSub: "Automate lead nurture, onboarding and deal recovery. Start from a template or a blank canvas.",
+        templates: "Start from a template", blank: "Blank workflow",
+        tplNurture: "Lead Nurture Sequence", tplOnboard: "Client Onboarding", tplRecovery: "Abandoned Deal Recovery",
+        triggers: {
+          form_submitted: "Form submitted", tag_added: "Tag added", appointment_booked: "Appointment booked",
+          payment_received: "Payment received", deal_stage_changed: "Deal stage changed",
+        },
+        actions: {
+          send_email: "Send email", send_sms: "Send SMS", wait: "Wait X days",
+          assign_task: "Assign task", move_stage: "Move deal stage", notify_team: "Notify team",
+        },
+        chooseTrigger: "Choose a trigger", chooseAction: "Choose an action",
+        addAction: "Add action", addCondition: "Add condition", addDelay: "Add delay",
+        stepConfig: "Step configuration",
+      },
+      scheduling: {
+        title: "Appointment Scheduling", sub: "Let contacts book time — automatically distributed to your team.",
+        bookingPage: "Booking page", roundRobin: "Round-robin assignment",
+        calSync: "Calendar sync", reminders: "Reminders", pickDate: "Pick a date",
+        pickTime: "Pick a time", book: "Book appointment", upcoming: "Upcoming appointments",
+        noAppointments: "No appointments booked", noAppointmentsSub: "Share your booking page or book a slot below to see appointments here.",
+        bookedWith: "with", connectGoogle: "Connect Google Calendar", connectOutlook: "Connect Outlook",
+        smsReminder: "SMS reminder", emailReminder: "Email reminder", reminderBefore: "Reminder before",
+        confirmBooking: "Confirm booking", meetingType: "Meeting type", duration: "Duration",
+        assignedVia: "Assigned via round-robin to", placeholder: "(Placeholder — connect in production)",
+        selectContact: "Contact for this booking", hours: "hours", minutes: "min",
+      },
+      settings: {
+        title: "Settings", sub: "Configure your CRM to match how Inflate AI sells.",
+        general: "General", language: "Language", theme: "Theme",
+        light: "Light", dark: "Dark", team: "Team members", addMember: "Add member",
+        stages: "Pipeline stages", customStages: "Customize your sales stages",
+        addStage: "Add stage", stageName: "Stage name", data: "Data",
+        exportData: "Export data (JSON)", importData: "Import data (JSON)",
+        resetData: "Reset all data", resetConfirm: "Delete ALL contacts, companies, deals and messages? This cannot be undone.",
+        dataDesc: "Everything is stored locally in your browser. Export to back up or migrate to Supabase.",
+        memberName: "Member name", memberEmail: "Email", memberRole: "Role",
+        english: "English", spanish: "Español", brandColor: "Brand accent",
+        stageIsWon: "Counts as Won", stageIsLost: "Counts as Lost",
+        currency: "Currency", exported: "Data exported", imported: "Data imported",
+        aboutStorage: "Local storage", supabaseNote: "To go cloud: run the SQL in /supabase and swap the storage layer. See docs/DEPLOYMENT.md.",
+      },
+      sources: { website: "Website", referral: "Referral", ad: "Paid Ad", social: "Social Media", event: "Event", cold: "Cold Outreach", other: "Other" },
+      sizes: { s: "1–10", m: "11–50", l: "51–200", xl: "201–1000", xxl: "1000+" },
+      activity: { call: "Call", task: "Task", followup: "Follow-up", meeting: "Meeting", email: "Email", note: "Note" },
+      roles: { admin: "Admin", sales: "Sales Rep", manager: "Manager" },
+    },
+
+    es: {
+      app: { tagline: "CRM", name: "Inflate AI CRM" },
+      nav: {
+        main: "Principal", crm: "CRM", growth: "Crecimiento",
+        dashboard: "Panel", contacts: "Contactos", companies: "Empresas",
+        pipeline: "Embudo", inbox: "Bandeja", workflows: "Automatizaciones",
+        scheduling: "Agenda", settings: "Ajustes",
+      },
+      common: {
+        search: "Buscar…", searchEverything: "Buscar contactos, empresas, negocios…",
+        add: "Agregar", edit: "Editar", save: "Guardar", cancel: "Cancelar", delete: "Eliminar",
+        create: "Crear", update: "Actualizar", close: "Cerrar", confirm: "Confirmar",
+        all: "Todos", none: "Ninguno", name: "Nombre", email: "Correo", phone: "Teléfono",
+        company: "Empresa", noResults: "Sin resultados", loading: "Cargando…",
+        actions: "Acciones", back: "Volver", filter: "Filtrar", sort: "Ordenar",
+        newest: "Más recientes", oldest: "Más antiguos", today: "Hoy", yesterday: "Ayer",
+        daysAgo: "hace {n}d", never: "Nunca", unassigned: "Sin asignar",
+        required: "Obligatorio", optional: "opcional", saved: "Guardado", deleted: "Eliminado",
+        created: "Creado", updated: "Actualizado", assignedTo: "Asignado a",
+        owner: "Responsable", tags: "Etiquetas", notes: "Notas", source: "Origen",
+        value: "Valor", date: "Fecha", status: "Estado", type: "Tipo",
+        addTag: "Escribe y presiona Enter…", selectOne: "Selecciona…", viewAll: "Ver todo",
+        deleteConfirm: "Esto no se puede deshacer. ¿Eliminar permanentemente?",
+      },
+      dashboard: {
+        title: "Panel Ejecutivo", sub: "Tu motor de crecimiento de un vistazo.",
+        totalPipeline: "Valor del Embudo", openDeals: "Negocios Abiertos",
+        wonValue: "Ganados (valor)", winRate: "Tasa de Cierre",
+        avgClose: "Tiempo Prom. de Cierre", newLeads: "Leads Nuevos (30d)",
+        conversionFunnel: "Embudo de Conversión", pipelineByStage: "Valor del Embudo por Etapa",
+        leadSources: "Orígenes de Leads", leadsTrend: "Leads Nuevos — Tendencia Semanal",
+        wonVsLost: "Ganados vs Perdidos (valor)", days: "días", deals: "negocios",
+        noData: "Aún no hay datos", noDataSub: "Agrega contactos y negocios para ver tus métricas cobrar vida.",
+        conv: "conv.", won: "Ganado", lost: "Perdido", thisMonth: "este mes",
+      },
+      contacts: {
+        title: "Contactos", sub: "Tu base de relaciones centralizada.",
+        newContact: "Nuevo Contacto", editContact: "Editar Contacto",
+        firstName: "Nombre", lastName: "Apellido", jobTitle: "Puesto",
+        lastActivity: "Última actividad", created: "Creado", customFields: "Campos personalizados",
+        pendingActivities: "Actividades pendientes", interactionHistory: "Historial de interacciones",
+        noContacts: "Aún no hay contactos", noContactsSub: "Agrega tu primer lead para empezar a construir tu embudo. La base está vacía y lista para datos reales.",
+        addActivity: "Agregar actividad", addNote: "Agregar nota", logActivity: "Registrar actividad",
+        allSources: "Todos los orígenes", allOwners: "Todos los responsables", allTags: "Todas las etiquetas",
+        deals: "Negocios", noPending: "Sin actividades pendientes", noHistory: "Aún no hay interacciones registradas.",
+        addCustomField: "Agregar campo", fieldName: "Nombre del campo", fieldValue: "Valor",
+      },
+      companies: {
+        title: "Empresas", sub: "Organizaciones con las que construyes relaciones.",
+        newCompany: "Nueva Empresa", editCompany: "Editar Empresa",
+        industry: "Industria", website: "Sitio web", size: "Tamaño de empresa",
+        people: "Personas", associatedContacts: "Contactos asociados",
+        dealHistory: "Historial de negocios", noCompanies: "Aún no hay empresas",
+        noCompaniesSub: "Crea una empresa para agrupar contactos y seguir negocios a nivel organización.",
+        contactsCount: "{n} contactos", dealsCount: "{n} negocios", totalValue: "Valor total",
+        noPeople: "Aún no hay personas vinculadas a esta empresa.", noDeals: "Aún no hay negocios para esta empresa.",
+      },
+      pipeline: {
+        title: "Embudo de Ventas", sub: "Arrastra los negocios entre etapas para avanzarlos.",
+        newDeal: "Nuevo Negocio", editDeal: "Editar Negocio", dealTitle: "Título del negocio",
+        probability: "Probabilidad", stage: "Etapa", daysInStage: "{n}d en etapa",
+        markWon: "Marcar Ganado", markLost: "Marcar Perdido", reopen: "Reabrir",
+        noDeals: "El embudo está vacío", noDealsSub: "Agrega tu primer negocio para empezar a seguir ingresos. Sin datos ficticios — hazlo real.",
+        wonBanner: "🎉 Ganado", lostBanner: "Perdido", value: "Valor del negocio",
+        totalWeighted: "Ponderado", movedTo: "Negocio movido a {stage}",
+      },
+      inbox: {
+        title: "Conversaciones", sub: "Todos los canales, un hilo por contacto.",
+        noThreads: "Aún no hay conversaciones", noThreadsSub: "Las conversaciones aparecen aquí cuando registras mensajes con contactos en distintos canales.",
+        internalNote: "Nota interna", quickReplies: "Respuestas rápidas / plantillas",
+        reply: "Responder", send: "Enviar", typeMessage: "Escribe un mensaje…",
+        typeNote: "Escribe una nota interna (solo la ve tu equipo)…",
+        assignConversation: "Asignar", channels: "Canales", selectThread: "Selecciona una conversación",
+        selectThreadSub: "Elige un contacto a la izquierda para ver todo el historial.",
+        template1: "¡Hola {name}, gracias por escribir! ¿Cuándo te viene bien una llamada rápida?",
+        template2: "Dando seguimiento a nuestra propuesta — con gusto respondo cualquier duda.",
+        template3: "¡Un gusto platicar hoy! Te envío los siguientes pasos en breve.",
+      },
+      channels: { email: "Correo", sms: "SMS", whatsapp: "WhatsApp", instagram: "Instagram DM", messenger: "Messenger", webchat: "Chat Web", call: "Llamada" },
+      workflows: {
+        title: "Automatización de Flujos", sub: "Construye el cerebro de tu CRM con disparadores, acciones y lógica.",
+        newWorkflow: "Nuevo Flujo", editWorkflow: "Editar Flujo", workflowName: "Nombre del flujo",
+        trigger: "Disparador", action: "Acción", condition: "Condición (Si / Sino)", delay: "Espera / Retraso",
+        addStep: "Agregar paso", active: "Activo", paused: "Pausado",
+        noWorkflows: "Aún no hay flujos", noWorkflowsSub: "Automatiza nutrición de leads, onboarding y recuperación de negocios. Empieza desde una plantilla o lienzo en blanco.",
+        templates: "Empieza desde una plantilla", blank: "Flujo en blanco",
+        tplNurture: "Secuencia de Nutrición", tplOnboard: "Onboarding de Cliente", tplRecovery: "Recuperación de Negocio",
+        triggers: {
+          form_submitted: "Formulario enviado", tag_added: "Etiqueta agregada", appointment_booked: "Cita agendada",
+          payment_received: "Pago recibido", deal_stage_changed: "Cambio de etapa de negocio",
+        },
+        actions: {
+          send_email: "Enviar correo", send_sms: "Enviar SMS", wait: "Esperar X días",
+          assign_task: "Asignar tarea", move_stage: "Mover etapa", notify_team: "Notificar al equipo",
+        },
+        chooseTrigger: "Elige un disparador", chooseAction: "Elige una acción",
+        addAction: "Agregar acción", addCondition: "Agregar condición", addDelay: "Agregar espera",
+        stepConfig: "Configuración del paso",
+      },
+      scheduling: {
+        title: "Agenda de Citas", sub: "Deja que los contactos reserven — distribuido automáticamente a tu equipo.",
+        bookingPage: "Página de reservas", roundRobin: "Asignación round-robin",
+        calSync: "Sincronización de calendario", reminders: "Recordatorios", pickDate: "Elige una fecha",
+        pickTime: "Elige un horario", book: "Reservar cita", upcoming: "Próximas citas",
+        noAppointments: "No hay citas agendadas", noAppointmentsSub: "Comparte tu página de reservas o reserva un horario abajo para ver las citas aquí.",
+        bookedWith: "con", connectGoogle: "Conectar Google Calendar", connectOutlook: "Conectar Outlook",
+        smsReminder: "Recordatorio SMS", emailReminder: "Recordatorio por correo", reminderBefore: "Recordatorio antes de",
+        confirmBooking: "Confirmar reserva", meetingType: "Tipo de reunión", duration: "Duración",
+        assignedVia: "Asignado por round-robin a", placeholder: "(Marcador — conectar en producción)",
+        selectContact: "Contacto para esta reserva", hours: "horas", minutes: "min",
+      },
+      settings: {
+        title: "Ajustes", sub: "Configura tu CRM según cómo vende Inflate AI.",
+        general: "General", language: "Idioma", theme: "Tema",
+        light: "Claro", dark: "Oscuro", team: "Miembros del equipo", addMember: "Agregar miembro",
+        stages: "Etapas del embudo", customStages: "Personaliza tus etapas de venta",
+        addStage: "Agregar etapa", stageName: "Nombre de etapa", data: "Datos",
+        exportData: "Exportar datos (JSON)", importData: "Importar datos (JSON)",
+        resetData: "Restablecer todo", resetConfirm: "¿Eliminar TODOS los contactos, empresas, negocios y mensajes? Esto no se puede deshacer.",
+        dataDesc: "Todo se guarda localmente en tu navegador. Exporta para respaldar o migrar a Supabase.",
+        memberName: "Nombre", memberEmail: "Correo", memberRole: "Rol",
+        english: "English", spanish: "Español", brandColor: "Color de marca",
+        stageIsWon: "Cuenta como Ganado", stageIsLost: "Cuenta como Perdido",
+        currency: "Moneda", exported: "Datos exportados", imported: "Datos importados",
+        aboutStorage: "Almacenamiento local", supabaseNote: "Para ir a la nube: ejecuta el SQL en /supabase y cambia la capa de almacenamiento. Ver docs/DEPLOYMENT.md.",
+      },
+      sources: { website: "Sitio web", referral: "Referido", ad: "Anuncio Pagado", social: "Redes Sociales", event: "Evento", cold: "Prospección Fría", other: "Otro" },
+      sizes: { s: "1–10", m: "11–50", l: "51–200", xl: "201–1000", xxl: "1000+" },
+      activity: { call: "Llamada", task: "Tarea", followup: "Seguimiento", meeting: "Reunión", email: "Correo", note: "Nota" },
+      roles: { admin: "Admin", sales: "Ventas", manager: "Gerente" },
+    },
+  };
+
+  let lang = localStorage.getItem("crm_lang") || "en";
+
+  function get(obj, path) {
+    return path.split(".").reduce((o, k) => (o == null ? undefined : o[k]), obj);
+  }
+
+  function t(key, vars) {
+    let str = get(DICT[lang], key);
+    if (str == null) str = get(DICT.en, key);
+    if (str == null) return key;
+    if (vars) for (const k in vars) str = str.replace(new RegExp("\\{" + k + "\\}", "g"), vars[k]);
+    return str;
+  }
+
+  function setLang(l) {
+    lang = l;
+    localStorage.setItem("crm_lang", l);
+    document.documentElement.lang = l;
+  }
+
+  function getLang() { return lang; }
+
+  // Apply translations to static [data-i18n] / [data-i18n-ph] nodes
+  function applyStatic() {
+    document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.getAttribute("data-i18n")); });
+    document.querySelectorAll("[data-i18n-ph]").forEach((el) => { el.setAttribute("placeholder", t(el.getAttribute("data-i18n-ph"))); });
+  }
+
+  window.CRM.i18n = { t, setLang, getLang, applyStatic, DICT };
+  window.t = t; // convenience global
+})();

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inflate AI CRM</title>
+  <meta name="description" content="Inflate AI CRM — the sales & relationship engine for Inflate AI." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎈</text></svg>" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">IA</div>
+        <div class="brand-text">
+          <span class="brand-name">Inflate AI</span>
+          <span class="brand-sub" data-i18n="app.tagline">CRM</span>
+        </div>
+      </div>
+      <nav id="nav" class="nav"></nav>
+      <div class="sidebar-footer">
+        <div class="user-chip" id="userChip"></div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <div class="main">
+      <header class="topbar">
+        <button class="icon-btn menu-toggle" id="menuToggle" aria-label="Menu">☰</button>
+        <div class="topbar-title" id="topbarTitle"></div>
+        <div class="topbar-actions">
+          <div class="global-search">
+            <span class="search-ico">🔎</span>
+            <input id="globalSearch" type="search" data-i18n-ph="common.searchEverything" placeholder="Search…" />
+          </div>
+          <button class="icon-btn" id="langToggle" title="Language"><span id="langLabel">EN</span></button>
+          <button class="icon-btn" id="themeToggle" title="Theme">🌙</button>
+        </div>
+      </header>
+      <main id="view" class="view"></main>
+    </div>
+  </div>
+
+  <!-- Modal + Toast mount points -->
+  <div id="modal-root"></div>
+  <div id="toast-root" class="toast-root"></div>
+
+  <!-- Scripts (classic scripts so the app runs over file:// with no build step) -->
+  <script src="js/i18n.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/views/dashboard.js"></script>
+  <script src="js/views/contacts.js"></script>
+  <script src="js/views/companies.js"></script>
+  <script src="js/views/pipeline.js"></script>
+  <script src="js/views/inbox.js"></script>
+  <script src="js/views/workflows.js"></script>
+  <script src="js/views/scheduling.js"></script>
+  <script src="js/views/settings.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

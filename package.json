@@ -1,0 +1,13 @@
+{
+  "name": "inflate-ai-crm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Inflate AI CRM — a lean, powerful CRM for the Inflate AI marketing agency. 100% local, zero build step, bilingual (EN/ES).",
+  "scripts": {
+    "start": "npx --yes serve public -l 8777",
+    "dev": "npx --yes serve public -l 8777",
+    "serve:python": "python -m http.server 8777 --directory public"
+  },
+  "keywords": ["crm", "sales", "pipeline", "inflate-ai", "vanilla-js"],
+  "license": "UNLICENSED"
+}

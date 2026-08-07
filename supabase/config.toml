@@ -1,0 +1,15 @@
+# Minimal Supabase CLI config. Replace project_id with your ref
+# (Project Settings → General → Reference ID) before `supabase link`.
+project_id = "inflate-ai-crm"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+
+[db]
+port = 54322
+
+[studio]
+enabled = true
+port = 54323
