@@ -87,6 +87,10 @@ alter table public.workflows    alter column account_id set default public.curre
 -- Stages become per-account (each sub-account gets its own editable
 -- pipeline, seeded automatically when the account is founded — see
 -- the trigger below). The primary key becomes (account_id, id).
+-- deals.stage has a plain FK to stages(id) which depends on the old
+-- single-column primary key — drop it first (stage is looked up by the
+-- app as a free-text key scoped by account_id, not DB-enforced).
+alter table public.deals drop constraint if exists deals_stage_fkey;
 alter table public.stages drop constraint if exists stages_pkey;
 alter table public.stages add column if not exists account_id uuid references public.accounts(id);
 alter table public.stages alter column account_id set default public.current_account_id(), alter column account_id set not null;
