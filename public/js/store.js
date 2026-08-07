@@ -110,6 +110,19 @@
   }
   function cloudDelete(collection, api, id) { cloudSync(() => (isCloudId(id) ? api.remove(id) : Promise.resolve())); }
 
+  // Wipe the locally-cached tenant collections (contacts, deals, etc.).
+  // Called whenever a super admin enters or exits a sub-account, so leftover
+  // rows from a previously-viewed company never bleed into the next one.
+  function resetTenantData() {
+    ["contacts", "companies", "deals", "activities", "messages", "appointments", "calendars", "workflows", "stages"].forEach((c) => { data[c] = []; });
+    // Keep only the caller's own profile in `team` (super admins aren't part
+    // of any account) so the next sync repopulates just the viewed company's
+    // roster, instead of accumulating members from every account ever entered.
+    const myId = localStorage.getItem("crm_session");
+    data.team = data.team.filter((m) => m.id === myId);
+    persist();
+  }
+
   // Pull every collection from Supabase and merge into the local cache
   // (upsert by id) — called once after login so the whole team shares
   // the same contacts, deals, calendars, etc. across every device.
@@ -428,7 +441,7 @@
     addWorkflow, updateWorkflow, deleteWorkflow,
     addAppointment, deleteAppointment, nextRoundRobinOwner,
     addCalendar, updateCalendar, deleteCalendar, slugify, defaultBusinessHours,
-    saveCalendarToCloud, deleteCalendarFromCloud, syncCalendarsFromCloud, syncAllFromCloud,
+    saveCalendarToCloud, deleteCalendarFromCloud, syncCalendarsFromCloud, syncAllFromCloud, resetTenantData,
     addMember, updateMember, deleteMember,
     updateStages, stageName,
     setSetting, exportJSON, importJSON, resetAll,

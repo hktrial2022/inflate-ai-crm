@@ -19,6 +19,9 @@
     ] },
   ];
 
+  function isSuperAdmin() { const me = store.currentUser(); return !!(me && me.role === "super_admin"); }
+  function inAdminMode() { return !!(window.CRM.cloud && window.CRM.cloud.getAdminAccount && window.CRM.cloud.getAdminAccount()); }
+
   function parseHash() {
     const hash = location.hash.replace(/^#\/?/, "");
     const [route, id] = hash.split("/");
@@ -37,6 +40,14 @@
     const nav = document.getElementById("nav");
     ui.clear(nav);
     const { route } = parseHash();
+
+    if (isSuperAdmin() && !inAdminMode()) {
+      // Outside of "entering" a sub-account, a super admin only sees the admin panel —
+      // never a blended view of every client's data.
+      nav.appendChild(h("div.nav-section", t("nav.growth")));
+      nav.appendChild(h("button.nav-item" + (route === "admin" ? ".active" : ""), { onclick: () => (location.hash = "#/admin") }, [h("span.nav-ico", "🛡️"), h("span", t("nav.admin"))]));
+      return;
+    }
     NAV.forEach((group) => {
       nav.appendChild(h("div.nav-section", t("nav." + group.section)));
       group.items.forEach((it) => {
@@ -49,6 +60,10 @@
         ]));
       });
     });
+    if (isSuperAdmin() && inAdminMode()) {
+      nav.appendChild(h("div.nav-section", "—"));
+      nav.appendChild(h("button.nav-item", { onclick: () => (location.hash = "#/admin") }, [h("span.nav-ico", "🛡️"), h("span", t("nav.admin"))]));
+    }
   }
 
   function buildUserChip() {
@@ -68,6 +83,17 @@
     chip.onclick = null;
   }
 
+  function buildAdminBanner() {
+    const el = document.getElementById("adminBanner");
+    ui.clear(el);
+    if (!inAdminMode()) { el.style.display = "none"; return; }
+    el.style.display = "flex";
+    const name = (window.CRM.cloud.getAdminAccountName && window.CRM.cloud.getAdminAccountName()) || "…";
+    el.className = "admin-banner";
+    el.appendChild(h("span", "🛡️ " + t("admin.viewing", { name })));
+    el.appendChild(h("span.link", { onclick: () => { window.CRM.cloud.clearAdminAccount(); window.CRM.store.resetTenantData(); location.hash = "#/admin"; location.reload(); } }, t("admin.exit")));
+  }
+
   function applyChrome() {
     document.documentElement.lang = window.CRM.i18n.getLang();
     window.CRM.i18n.applyStatic();
@@ -75,6 +101,7 @@
     document.title = t("app.name");
     buildNav();
     buildUserChip();
+    buildAdminBanner();
   }
 
   let currentParams = null;
@@ -150,6 +177,15 @@
     }
     pubEl.style.display = "none";
 
+    // ---- Invite link: #/join/<accountId> — always shows sign-up, even
+    // if someone is currently signed in (as a different account). ----
+    if (r === "join") {
+      if (window.CRM.auth.isLoggedIn()) { ui.toast(t("admin.alreadySignedIn")); location.hash = "#/dashboard"; return; }
+      appEl.style.display = "none";
+      window.CRM.auth.showLogin({ joinAccountId: id });
+      return;
+    }
+
     // ---- Auth gate ----
     if (!window.CRM.auth.isLoggedIn()) {
       appEl.style.display = "none";
@@ -159,11 +195,20 @@
     loginEl.style.display = "none";
     appEl.style.display = "flex";
     document.getElementById("themeToggle").textContent = (document.documentElement.getAttribute("data-theme") === "dark") ? "☀️" : "🌙";
+
+    // A super admin with no sub-account "entered" only ever sees the admin
+    // panel — never a blended view mixing every client's data together.
+    if (isSuperAdmin() && !inAdminMode() && r !== "admin") { location.hash = "#/admin"; return; }
+
     applyChrome();
     renderRoute();
     // Pull every collection from Supabase so the whole team sees the same
-    // contacts, deals, calendars, etc. regardless of device.
-    if (window.CRM.store.syncAllFromCloud) window.CRM.store.syncAllFromCloud().then(() => rerender());
+    // contacts, deals, calendars, etc. regardless of device. Skipped on the
+    // admin panel itself (r === "admin", not yet "inside" a sub-account) —
+    // a super admin's RLS bypass would otherwise blend every client's rows
+    // together in the local cache.
+    const skipSync = isSuperAdmin() && !inAdminMode();
+    if (!skipSync && window.CRM.store.syncAllFromCloud) window.CRM.store.syncAllFromCloud().then(() => rerender());
   }
 
   function globalSearch(q) {

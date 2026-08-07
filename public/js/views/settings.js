@@ -214,18 +214,36 @@
 
   function teamCard() {
     const store = S();
+    const me = store.currentUser();
+    const cloudOn = window.CRM.cloud && window.CRM.cloudReady;
+    const canInvite = cloudOn && me && me.accountId;
     return h("div.card.card-pad", [
       h("div.flex.between.mb-16", [h("h3", { style: { fontSize: "15px" } }, "👥 " + t("settings.team")),
-        h("button.btn.btn-sm.btn-primary", { onclick: () => editMember() }, "＋ " + t("settings.addMember"))]),
-      h("div", { style: { display: "flex", flexDirection: "column", gap: "8px" } }, store.data.team.map((m) =>
+        canInvite
+          ? h("button.btn.btn-sm.btn-primary", { onclick: inviteTeammate }, "🔗 " + t("settings.inviteTeammate"))
+          : (!cloudOn ? h("button.btn.btn-sm.btn-primary", { onclick: () => editMember() }, "＋ " + t("settings.addMember")) : null)]),
+      h("div", { style: { display: "flex", flexDirection: "column", gap: "8px" } }, store.data.team.filter((m) => m.role !== "super_admin").map((m) =>
         h("div.flex.between", { style: { padding: "8px 10px", background: "var(--bg-sunken)", borderRadius: "9px" } }, [
           h("div.flex", { style: { gap: "10px" } }, [ui.avatar(m), h("div", [h("strong", m.name), h("div.faint", { style: { fontSize: "12px" } }, (m.email || "") + " · " + t("roles." + m.role))])]),
           h("div.flex", { style: { gap: "4px" } }, [
             h("button.btn.btn-sm.btn-ghost", { onclick: () => editMember(m) }, "✏️"),
-            store.data.team.length > 1 ? h("button.btn.btn-sm.btn-ghost", { onclick: () => { store.deleteMember(m.id); window.CRM.app.rerender(); } }, "🗑️") : null,
+            (!cloudOn && store.data.team.length > 1) ? h("button.btn.btn-sm.btn-ghost", { onclick: () => { store.deleteMember(m.id); window.CRM.app.rerender(); } }, "🗑️") : null,
           ]),
         ]))),
     ]);
+  }
+
+  function inviteTeammate() {
+    const store = S();
+    const me = store.currentUser();
+    const link = location.origin + location.pathname + "#/join/" + me.accountId;
+    const m = ui.modal({ title: t("settings.inviteTeammate"), icon: "🔗" });
+    m.setBody([
+      h("p.faint", { style: { fontSize: "13px" } }, t("settings.inviteHint")),
+      h("div.url-field.mt-8", [h("input.input", { value: link, readonly: true, style: "border:none;box-shadow:none" })]),
+    ]);
+    m.setFooter([h("button.btn", { onclick: m.close }, t("common.close")),
+      h("button.btn.btn-primary", { onclick: () => { try { navigator.clipboard.writeText(link); ui.toast(t("settings.inviteCopied"), "success"); } catch (e) { ui.toast(link); } } }, "📋 " + t("settings.copyInvite"))]);
   }
   function editMember(existing) {
     const store = S();

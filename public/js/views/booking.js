@@ -254,13 +254,17 @@
     store.addActivity({ contactId: contact.id, type: "meeting", title: cal.name + " · " + state.selSlot.toLocaleString(), dueAt: state.selSlot.toISOString() });
     if (f.notes) store.addMessage({ contactId: contact.id, channel: "webchat", direction: "in", body: f.notes });
 
-    if (window.CRM.cloud && window.CRM.cloudReady) {
+    // Visitors booking from a public link are never signed in, so there's
+    // no account_id to infer from a session — it has to come from the
+    // calendar itself (whichever sub-account owns it).
+    const accountId = cal.accountId;
+    if (window.CRM.cloud && window.CRM.cloudReady && accountId) {
       (async () => {
         try {
           let remoteContact = await window.CRM.cloud.findContactByEmail(f.email.trim());
-          if (!remoteContact) remoteContact = await window.CRM.cloud.insertContact({ firstName: parts[0] || f.name, lastName: parts.slice(1).join(" "), email: f.email.trim(), phone: f.phone, source: "website", notes: f.notes, tags: ["booking"] });
-          await window.CRM.cloud.insertAppointment({ contactId: remoteContact.id, ownerId: /^[0-9a-f-]{36}$/i.test(ownerId || "") ? ownerId : null, type: cal.name, startAt: state.selSlot.toISOString(), durationMin: durationMin });
-          await window.CRM.cloud.insertActivity({ contactId: remoteContact.id, type: "meeting", title: cal.name + " · " + state.selSlot.toLocaleString(), dueAt: state.selSlot.toISOString() });
+          if (!remoteContact) remoteContact = await window.CRM.cloud.insertContact({ accountId, firstName: parts[0] || f.name, lastName: parts.slice(1).join(" "), email: f.email.trim(), phone: f.phone, source: "website", notes: f.notes, tags: ["booking"] });
+          await window.CRM.cloud.insertAppointment({ accountId, contactId: remoteContact.id, ownerId: /^[0-9a-f-]{36}$/i.test(ownerId || "") ? ownerId : null, type: cal.name, startAt: state.selSlot.toISOString(), durationMin: durationMin });
+          await window.CRM.cloud.insertActivity({ accountId, contactId: remoteContact.id, type: "meeting", title: cal.name + " · " + state.selSlot.toLocaleString(), dueAt: state.selSlot.toISOString() });
         } catch (e) { console.warn("[booking] cloud write failed", e.message || e); }
       })();
     }

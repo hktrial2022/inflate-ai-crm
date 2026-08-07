@@ -37,7 +37,19 @@
     const store = window.CRM.store;
     let profile;
     try { profile = await window.CRM.cloud.ensureProfile(user.id, (user.user_metadata || {}).name, user.email); }
-    catch (e) { profile = { id: user.id, name: (user.user_metadata || {}).name || user.email, email: user.email, role: "sales" }; }
+    catch (e) { profile = { id: user.id, name: (user.user_metadata || {}).name || user.email, email: user.email, role: "sales", accountId: null }; }
+
+    // OAuth (Google/Apple) sign-ins never carry our custom join_account_id
+    // metadata, so a person clicking an invite link and continuing with
+    // Google would otherwise land in a brand-new company. If they started
+    // from #/join/<id>, claim that account now that we know who they are.
+    const pendingJoin = localStorage.getItem("crm_pending_join");
+    if (pendingJoin && !profile.accountId && profile.role !== "super_admin") {
+      try { await window.CRM.cloud.joinAccount(pendingJoin); profile = await window.CRM.cloud.fetchProfile(user.id); }
+      catch (e) { console.warn("[auth] joinAccount failed", e.message || e); }
+    }
+    localStorage.removeItem("crm_pending_join");
+
     const existing = store.byId("team", profile.id);
     if (existing) Object.assign(existing, profile); else store.data.team.push(profile);
     localStorage.setItem(SESSION_KEY, profile.id);
@@ -54,10 +66,12 @@
     return loginLocal(email, password);
   }
 
-  async function register(name, email, password) {
+  // opts: { companyName } founds a brand-new, independent sub-account;
+  // { joinAccountId } joins an existing one via an invite link.
+  async function register(name, email, password, opts) {
     const c = cloud();
     if (c) {
-      const { data, error } = await c.signUp(email, password, name);
+      const { data, error } = await c.signUp(email, password, name, opts);
       if (error) return { ok: false, reason: /registered|exists/i.test(error.message) ? "emailExists" : "wrongPassword" };
       if (!data.session) return { ok: false, reason: "confirmEmail" }; // email confirmation required by project settings
       await hydrateFromUser(data.user);
@@ -73,9 +87,13 @@
     location.reload();
   }
 
-  function loginWithProvider(provider) {
+  function loginWithProvider(provider, joinAccountId) {
     const c = cloud();
-    if (c) { c.signInWithOAuth(provider); return; } // redirects to provider; resolveSession() picks it up on return
+    if (c) {
+      if (joinAccountId) localStorage.setItem("crm_pending_join", joinAccountId);
+      c.signInWithOAuth(provider); // redirects to provider; resolveSession() picks it up on return
+      return;
+    }
     const label = provider === "google" ? "Google" : "Apple";
     window.CRM.ui.modal({
       title: t("auth.oauthTitle", { provider: label }), icon: provider === "google" ? "G" : "",
@@ -102,17 +120,23 @@
   }
 
   // ---------------- Login / Sign-up screen ----------------
-  function showLogin() {
+  // ctx: { joinAccountId, joinAccountName } — present when opened from an
+  // invite link (#/join/<id>); forces sign-up mode and joins that account
+  // instead of founding a new one.
+  function showLogin(ctx) {
+    ctx = ctx || {};
     const { h, mount } = window.CRM.ui;
     const root = document.getElementById("login-root");
     root.style.display = "block";
-    let mode = "login";
+    let mode = ctx.joinAccountId ? "signup" : "login";
 
     function render() {
       window.CRM.i18n.applyStatic();
       const isSignup = mode === "signup";
+      const isJoin = isSignup && !!ctx.joinAccountId;
       const nameInput = h("input.input", { type: "text", placeholder: "Ana Ruiz", autocomplete: "name" });
-      const emailInput = h("input.input", { type: "email", placeholder: "you@inflate.ai", autocomplete: "username" });
+      const companyInput = h("input.input", { type: "text", placeholder: "Acme Marketing", autocomplete: "organization" });
+      const emailInput = h("input.input", { type: "email", placeholder: "you@company.com", autocomplete: "username" });
       const pwInput = h("input.input", { type: "password", placeholder: "••••••••", autocomplete: isSignup ? "new-password" : "current-password" });
       const pw2Input = h("input.input", { type: "password", placeholder: "••••••••", autocomplete: "new-password" });
       const errBox = h("div.login-error.hidden");
@@ -131,9 +155,10 @@
             if (!/.+@.+\..+/.test(emailInput.value)) return fail(t("auth.emailRequired"));
             if ((pwInput.value || "").length < 6) return fail(t("auth.passwordShort"));
             if (pwInput.value !== pw2Input.value) return fail(t("auth.passwordMismatch"));
-            const res = await register(nameInput.value, emailInput.value, pwInput.value);
+            const opts = isJoin ? { joinAccountId: ctx.joinAccountId } : { companyName: companyInput.value.trim() };
+            const res = await register(nameInput.value, emailInput.value, pwInput.value, opts);
             if (!res.ok) return fail(t("auth." + res.reason));
-            location.reload();
+            location.hash = "#/dashboard"; location.reload();
           } else {
             const res = await login(emailInput.value, pwInput.value);
             if (!res.ok) { fail(t("auth." + res.reason)); pwInput.focus(); pwInput.select(); return; }
@@ -143,8 +168,8 @@
       }
 
       const oauth = h("div.login-oauth", [
-        h("button.btn.oauth-btn", { type: "button", onclick: () => loginWithProvider("google") }, [googleIcon(), h("span", t("auth.continueGoogle"))]),
-        h("button.btn.oauth-btn", { type: "button", onclick: () => loginWithProvider("apple") }, [appleIcon(), h("span", t("auth.continueApple"))]),
+        h("button.btn.oauth-btn", { type: "button", onclick: () => loginWithProvider("google", ctx.joinAccountId) }, [googleIcon(), h("span", t("auth.continueGoogle"))]),
+        h("button.btn.oauth-btn", { type: "button", onclick: () => loginWithProvider("apple", ctx.joinAccountId) }, [appleIcon(), h("span", t("auth.continueApple"))]),
       ]);
 
       const submitBtn = h("button.btn.btn-primary.login-submit", { type: "submit" }, [isSignup ? t("auth.signUp") : t("auth.signIn"), busy]);
@@ -152,9 +177,11 @@
       const form = h("form.login-form", { onsubmit: submit }, [
         h("h1.login-title", isSignup ? t("auth.welcomeSignUp") : t("auth.welcome")),
         h("p.login-sub", isSignup ? t("auth.subtitleSignUp") : t("auth.subtitle")),
+        isJoin ? h("div.login-join-banner", ["🏢 ", t("auth.joiningCompany", { company: ctx.joinAccountName || "…" })]) : null,
         errBox, oauth,
         h("div.login-divider", h("span", t("auth.orContinue"))),
         isSignup ? h("div.field", [h("label", t("auth.name")), nameInput]) : null,
+        (isSignup && !isJoin) ? h("div.field", [h("label", t("auth.companyName")), companyInput]) : null,
         h("div.field", [h("label", t("auth.email")), emailInput]),
         h("div.field", [h("label", t("auth.password")), pwInput]),
         isSignup ? h("div.field", [h("label", t("auth.confirmPassword")), pw2Input]) : null,
@@ -163,11 +190,16 @@
           h("span.link", { style: { fontSize: "13px" }, onclick: () => window.CRM.ui.toast(t("auth.forgotHint")) }, t("auth.forgot")),
         ]) : null,
         submitBtn,
-        h("p.login-switch", [isSignup ? t("auth.haveAccount") : t("auth.noAccount"), " ",
-          h("span.link", { onclick: () => { mode = isSignup ? "login" : "signup"; render(); } }, isSignup ? t("auth.goSignIn") : t("auth.goSignUp"))]),
+        !isJoin ? h("p.login-switch", [isSignup ? t("auth.haveAccount") : t("auth.noAccount"), " ",
+          h("span.link", { onclick: () => { mode = isSignup ? "login" : "signup"; render(); } }, isSignup ? t("auth.goSignIn") : t("auth.goSignUp"))]) : null,
         !isSignup ? h("div.login-demo", [h("strong", t("auth.demoAccess")), h("div", { style: { marginTop: "4px" } }, t("auth.demoHint2"))]) : null,
         h("p.login-secure", t("auth.secureNote")),
       ]);
+
+      if (isJoin && !ctx._fetchedName && window.CRM.cloud && window.CRM.cloudReady) {
+        ctx._fetchedName = true;
+        window.CRM.cloud.accounts.fetchMine(ctx.joinAccountId).then((acc) => { if (acc) { ctx.joinAccountName = acc.name; render(); } }).catch(() => {});
+      }
 
       const langToggle = h("button.login-lang", { onclick: () => { window.CRM.i18n.setLang(window.CRM.i18n.getLang() === "en" ? "es" : "en"); render(); } }, window.CRM.i18n.getLang() === "en" ? "🇲🇽 Español" : "🇺🇸 English");
       const screen = h("div.login-screen", [
