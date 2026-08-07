@@ -492,6 +492,8 @@ table.data tbody tr:hover { background: var(--bg-sunken); }
 .book-powered { margin-top: 16px; color: var(--text-faint); font-size: 12.5px; }
 .book-lang { border: 1px solid var(--border); background: var(--bg-elev); color: var(--text-dim); border-radius: 20px; padding: 5px 12px; font-weight: 600; font-size: 12.5px; }
 .book-lang:hover { border-color: var(--brand-1); color: var(--brand-1); }
+.spinner { width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--brand-1); animation: spin .8s linear infinite; margin: 0 auto; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* Scrollbars */
 ::-webkit-scrollbar { width: 10px; height: 10px; }

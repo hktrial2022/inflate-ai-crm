@@ -43,7 +43,7 @@
     }
     function renderPanel() { ui.mount(panel, (TABS[active] || TABS.basic)(w)); renderTip(); }
 
-    function save() { store.updateCalendar(cal.id, w); ui.toast(t("saved"), "success"); }
+    function save() { const saved = store.updateCalendar(cal.id, w); store.saveCalendarToCloud(saved); ui.toast(t("saved"), "success"); }
 
     const header = h("div.cal-header", [
       h("button.btn.btn-ghost", { onclick: () => (location.hash = "#/settings") }, "← " + t("back")),

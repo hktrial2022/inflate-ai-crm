@@ -14,24 +14,44 @@
 
   function render(root, params) {
     const store = S();
-    const cal = (store.data.calendars || []).find((c) => c.slug === params.slug);
-
     ui.clear(root);
     const shell = h("div.book-shell");
     root.appendChild(shell);
 
-    if (!cal) {
-      shell.appendChild(h("div.book-card", [
-        langBtn(() => render(root, params)),
-        h("div.book-empty", [
-          h("div", { style: { fontSize: "40px" } }, "🔗"),
-          h("h2", t("notFound")), h("p.muted", t("notFoundSub")),
-          h("div.book-note", "ℹ️ " + t("localNote")),
-        ]),
-      ]));
-      return;
-    }
+    const local = (store.data.calendars || []).find((c) => c.slug === params.slug);
+    if (local) { renderCalendar(root, shell, params, local); return; }
 
+    // Not cached on this device — try Supabase so the link works for anyone.
+    shell.appendChild(h("div.book-card", h("div.book-empty", [h("div.spinner"), h("p.muted", "…")])));
+    if (window.CRM.cloud && window.CRM.cloudReady) {
+      window.CRM.cloud.fetchCalendarBySlug(params.slug).then((remote) => {
+        if (!remote) { renderNotFound(shell, root, params); return; }
+        (remote.memberIds || []).forEach((id) => { if (!store.byId("team", id)) store.data.team.push({ id: id, name: "Team", color: "#6d5efc" }); });
+        window.CRM.cloud.fetchTeam().then((team) => {
+          team.forEach((rt) => { const existing = store.byId("team", rt.id); if (existing) Object.assign(existing, rt); else store.data.team.push(rt); });
+          renderCalendar(root, shell, params, remote, true);
+        }).catch(() => renderCalendar(root, shell, params, remote, true));
+      }).catch(() => renderNotFound(shell, root, params));
+    } else {
+      renderNotFound(shell, root, params);
+    }
+  }
+
+  function renderNotFound(shell, root, params) {
+    ui.clear(shell);
+    shell.appendChild(h("div.book-card", [
+      langBtn(() => render(root, params)),
+      h("div.book-empty", [
+        h("div", { style: { fontSize: "40px" } }, "🔗"),
+        h("h2", t("notFound")), h("p.muted", t("notFoundSub")),
+        h("div.book-note", "ℹ️ " + t("localNote")),
+      ]),
+    ]));
+  }
+
+  function renderCalendar(root, shell, params, cal, isRemote) {
+    const store = S();
+    ui.clear(shell);
     const accent = cal.primaryColor || cal.color || "#6d5efc";
     const type = window.CRM.settingsHelpers ? window.CRM.settingsHelpers.calType(cal.type) : { multi: false };
     const hosts = (cal.memberIds || []).map((id) => store.member(id)).filter(Boolean);
@@ -211,12 +231,15 @@
   }
 
   // Persist the booking: find/create contact, assign host, create appointment + activity.
+  // Writes locally (instant UI, works for the agency's own device) AND, when
+  // Supabase is wired, straight to the cloud — this is what makes the link
+  // work for a client booking from their own phone/computer.
   function doBooking(cal, state, f) {
     const store = S();
     const email = f.email.trim().toLowerCase();
     let contact = store.data.contacts.find((c) => (c.email || "").toLowerCase() === email);
+    const parts = f.name.trim().split(/\s+/);
     if (!contact) {
-      const parts = f.name.trim().split(/\s+/);
       contact = store.addContact({ firstName: parts[0] || f.name, lastName: parts.slice(1).join(" "), email: f.email.trim(), phone: f.phone, source: "website", notes: f.notes, tags: ["booking"] });
     }
     // host assignment by calendar type
@@ -226,10 +249,21 @@
       const count = store.data.appointments.length;
       ownerId = members[count % members.length];
     }
-    store.addAppointment({ contactId: contact.id, ownerId: ownerId, type: cal.name, startAt: state.selSlot.toISOString(),
-      durationMin: cal.durationUnit === "hours" ? (cal.durationValue || 1) * 60 : (cal.durationValue || 30) });
+    const durationMin = cal.durationUnit === "hours" ? (cal.durationValue || 1) * 60 : (cal.durationValue || 30);
+    store.addAppointment({ contactId: contact.id, ownerId: ownerId, type: cal.name, startAt: state.selSlot.toISOString(), durationMin: durationMin });
     store.addActivity({ contactId: contact.id, type: "meeting", title: cal.name + " · " + state.selSlot.toLocaleString(), dueAt: state.selSlot.toISOString() });
     if (f.notes) store.addMessage({ contactId: contact.id, channel: "webchat", direction: "in", body: f.notes });
+
+    if (window.CRM.cloud && window.CRM.cloudReady) {
+      (async () => {
+        try {
+          let remoteContact = await window.CRM.cloud.findContactByEmail(f.email.trim());
+          if (!remoteContact) remoteContact = await window.CRM.cloud.insertContact({ firstName: parts[0] || f.name, lastName: parts.slice(1).join(" "), email: f.email.trim(), phone: f.phone, source: "website", notes: f.notes, tags: ["booking"] });
+          await window.CRM.cloud.insertAppointment({ contactId: remoteContact.id, ownerId: /^[0-9a-f-]{36}$/i.test(ownerId || "") ? ownerId : null, type: cal.name, startAt: state.selSlot.toISOString(), durationMin: durationMin });
+          await window.CRM.cloud.insertActivity({ contactId: remoteContact.id, type: "meeting", title: cal.name + " · " + state.selSlot.toLocaleString(), dueAt: state.selSlot.toISOString() });
+        } catch (e) { console.warn("[booking] cloud write failed", e.message || e); }
+      })();
+    }
   }
 
   function locationLabel(cal) {

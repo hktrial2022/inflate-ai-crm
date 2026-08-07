@@ -156,6 +156,9 @@
     document.getElementById("themeToggle").textContent = (document.documentElement.getAttribute("data-theme") === "dark") ? "☀️" : "🌙";
     applyChrome();
     renderRoute();
+    // Pull calendars (and their team refs) from Supabase so every
+    // signed-in teammate sees the same booking links, regardless of device.
+    if (window.CRM.store.syncCalendarsFromCloud) window.CRM.store.syncCalendarsFromCloud().then(() => rerender());
   }
 
   function globalSearch(q) {

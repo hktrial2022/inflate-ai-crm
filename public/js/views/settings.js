@@ -63,7 +63,7 @@
         h("button.btn.btn-sm.btn-ghost", { title: tc("copyLink"), onclick: () => copyLink(url) }, "🔗"),
         h("button.btn.btn-sm.btn-ghost", { title: t("caledit.advanced"), onclick: () => (location.hash = "#/calendar/" + c.id) }, "⚙️"),
         h("button.btn.btn-sm.btn-ghost", { onclick: () => quickForm(c) }, "✏️"),
-        h("button.btn.btn-sm.btn-ghost", { onclick: () => ui.confirm(t("common.deleteConfirm"), () => { store.deleteCalendar(c.id); ui.toast(t("common.deleted"), "success"); window.CRM.app.rerender(); }) }, "🗑️"),
+        h("button.btn.btn-sm.btn-ghost", { onclick: () => ui.confirm(t("common.deleteConfirm"), () => { store.deleteCalendarFromCloud(c); store.deleteCalendar(c.id); ui.toast(t("common.deleted"), "success"); window.CRM.app.rerender(); }) }, "🗑️"),
       ]),
     ]);
   }
@@ -128,6 +128,7 @@
       let saved;
       if (existing) { saved = store.updateCalendar(existing.id, c); ui.toast(t("common.saved"), "success"); }
       else { saved = store.addCalendar(c); ui.toast(t("common.created"), "success"); }
+      if (saved) store.saveCalendarToCloud(saved);
       m.close();
       if (goAdvanced && saved) location.hash = "#/calendar/" + saved.id;
       else window.CRM.app.rerender();

@@ -203,6 +203,14 @@
     while (data.calendars.some((c) => c.slug === candidate && c.id !== ignoreId)) { n++; candidate = slug + "-" + n; }
     return candidate;
   }
+  // Best-effort cloud sync — never blocks the UI. If Supabase isn't
+  // wired (or the request fails, e.g. offline), the app keeps working
+  // locally; the calendar just won't be visible from other devices yet.
+  function cloudSync(fn) {
+    if (!(window.CRM.cloud && window.CRM.cloudReady)) return;
+    Promise.resolve().then(fn).catch((e) => console.warn("[cloud sync]", e.message || e));
+  }
+
   function addCalendar(c) {
     const rec = Object.assign({
       id: uid("cal"), name: "", description: "", type: "personal",
@@ -243,6 +251,38 @@
     emit(); return c;
   }
   function deleteCalendar(id) { data.calendars = data.calendars.filter((x) => x.id !== id); emit(); }
+
+  // Cloud-aware wrappers used by the Settings/editor UI. They save
+  // locally immediately (instant UI) and push to Supabase in the
+  // background so the calendar + its public link work from any device.
+  function saveCalendarToCloud(cal) {
+    cloudSync(async () => {
+      const saved = await window.CRM.cloud.upsertCalendar(cal);
+      // adopt the server-issued UUID as our local id so future edits update (not duplicate) the row
+      if (saved && saved.id && saved.id !== cal.id) {
+        const local = byId("calendars", cal.id);
+        if (local) { local.id = saved.id; persist(); }
+      }
+    });
+  }
+  function deleteCalendarFromCloud(cal) { cloudSync(() => window.CRM.cloud.deleteCalendarRemote(cal.id)); }
+
+  // Pull calendars + team from Supabase into the local cache (called on
+  // app boot) so every signed-in teammate sees the same calendar list.
+  async function syncCalendarsFromCloud() {
+    if (!(window.CRM.cloud && window.CRM.cloudReady)) return;
+    try {
+      const [remoteCals, remoteTeam] = await Promise.all([window.CRM.cloud.fetchCalendars(), window.CRM.cloud.fetchTeam()]);
+      remoteCals.forEach((rc) => {
+        const idx = data.calendars.findIndex((c) => c.id === rc.id || c.slug === rc.slug);
+        if (idx >= 0) data.calendars[idx] = Object.assign({}, data.calendars[idx], rc);
+        else data.calendars.push(rc);
+      });
+      // merge remote team members we don't know locally (so host avatars/names resolve)
+      remoteTeam.forEach((rt) => { if (!data.team.find((m) => m.id === rt.id)) data.team.push(rt); });
+      emit();
+    } catch (e) { console.warn("[cloud sync] calendars/team pull failed", e.message || e); }
+  }
 
   // ---------- Team ----------
   function addMember(m) {
@@ -294,6 +334,7 @@
     addWorkflow, updateWorkflow, deleteWorkflow,
     addAppointment, deleteAppointment, nextRoundRobinOwner,
     addCalendar, updateCalendar, deleteCalendar, slugify, defaultBusinessHours,
+    saveCalendarToCloud, deleteCalendarFromCloud, syncCalendarsFromCloud,
     addMember, updateMember, deleteMember,
     updateStages, stageName,
     setSetting, exportJSON, importJSON, resetAll,
