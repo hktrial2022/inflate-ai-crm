@@ -28,6 +28,15 @@
     return { route: route || "dashboard", id: id || null };
   }
 
+  // Mobile drawer: keep the sidebar and its backdrop in sync. The backdrop
+  // is what makes the drawer closable — without it the open sidebar (higher
+  // z-index) sits on top of the hamburger button and swallows the tap that
+  // was meant to close it.
+  function setSidebarOpen(open) {
+    document.getElementById("sidebar").classList.toggle("open", open);
+    document.getElementById("sidebarBackdrop").classList.toggle("open", open);
+  }
+
   function setTheme(name) {
     document.documentElement.setAttribute("data-theme", name);
     localStorage.setItem("crm_theme", name);
@@ -123,7 +132,7 @@
       location.hash = "#/dashboard";
     }
     // close mobile sidebar on navigate
-    document.getElementById("sidebar").classList.remove("open");
+    setSidebarOpen(false);
     document.getElementById("view").scrollTop = 0;
     window.scrollTo(0, 0);
   }
@@ -144,8 +153,9 @@
       window.CRM.i18n.setLang(next); applyChrome(); rerender();
     });
     document.getElementById("menuToggle").addEventListener("click", () => {
-      document.getElementById("sidebar").classList.toggle("open");
+      setSidebarOpen(!document.getElementById("sidebar").classList.contains("open"));
     });
+    document.getElementById("sidebarBackdrop").addEventListener("click", () => setSidebarOpen(false));
     const gs = document.getElementById("globalSearch");
     gs.addEventListener("keydown", (e) => { if (e.key === "Enter") globalSearch(gs.value); });
 

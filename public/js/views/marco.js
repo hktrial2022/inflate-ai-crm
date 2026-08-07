@@ -18,15 +18,18 @@
       root.appendChild(ui.empty("🧭", t("title"), "Connect Supabase to talk to Marco."));
       return;
     }
-    root.appendChild(h("div.view-head", [
+    // Wrapped in .inbox-page so .inbox can fill the remaining height via
+    // flex instead of guessing this header's height with a vh calc.
+    const page = h("div.inbox-page", [h("div.view-head", [
       h("div", [h("h1", t("title")), h("div.sub", t("sub"))]),
       h("div.spacer"),
       h("button.btn", { onclick: newCase }, "＋ " + t("newCase")),
-    ]));
+    ])]);
+    root.appendChild(page);
 
     if (!state.loaded) {
       const body = h("div", h("p.faint", "Loading…"));
-      root.appendChild(body);
+      page.appendChild(body);
       loadAll(body);
       return;
     }
@@ -35,7 +38,7 @@
       ? state.cases.map((c) => caseItem(c))
       : [h("p.faint", { style: { padding: "16px" } }, t("noCasesYet"))]);
 
-    root.appendChild(h("div.inbox", [listEl, conversationPane()]));
+    page.appendChild(h("div.inbox", [listEl, conversationPane()]));
   }
 
   async function loadAll(body) {
@@ -91,11 +94,15 @@
     const bodyEl = h("div.thread-body", state.messages.length
       ? state.messages.map((m) => msgBubble(m))
       : [h("p.faint", { style: { textAlign: "center", margin: "auto" } }, t("startPrompt"))]);
-    setTimeout(() => (bodyEl.scrollTop = bodyEl.scrollHeight), 0);
+
+    // Messages + the pending-approvals panel scroll together as one region
+    // so the panel's length (can be long) never pushes the composer below
+    // it — the composer has its own reserved, never-shrinking space.
+    const scrollEl = h("div.thread-scroll", [bodyEl, pendingPanel()].filter(Boolean));
+    setTimeout(() => (scrollEl.scrollTop = scrollEl.scrollHeight), 0);
 
     return h("div.inbox-thread", [
-      bodyEl,
-      pendingPanel(),
+      scrollEl,
       buildComposer(),
     ]);
   }

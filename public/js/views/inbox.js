@@ -27,14 +27,17 @@
     }
     threads.sort((a, b) => new Date(b.lastActivityAt) - new Date(a.lastActivityAt));
 
-    root.appendChild(h("div.view-head", [
+    // Wrapped in .inbox-page so .inbox can fill the remaining height via
+    // flex instead of guessing this header's height with a vh calc.
+    const page = h("div.inbox-page", [h("div.view-head", [
       h("div", [h("h1", t("inbox.title")), h("div.sub", t("inbox.sub"))]),
       h("div.spacer"),
       h("button.btn", { onclick: startConversation }, "＋ " + t("inbox.title")),
-    ]));
+    ])]);
+    root.appendChild(page);
 
     if (!threads.length) {
-      root.appendChild(ui.empty("💬", t("inbox.noThreads"), t("inbox.noThreadsSub"),
+      page.appendChild(ui.empty("💬", t("inbox.noThreads"), t("inbox.noThreadsSub"),
         h("button.btn.btn-primary", { onclick: startConversation }, "＋ " + t("inbox.title"))));
       return;
     }
@@ -45,7 +48,7 @@
     const listEl = h("div.inbox-list", threads.map((c) => threadItem(c)));
     const threadEl = active ? threadView(active) : h("div", ui.empty("💬", t("inbox.selectThread"), t("inbox.selectThreadSub")));
 
-    root.appendChild(h("div.inbox", [listEl, threadEl]));
+    page.appendChild(h("div.inbox", [listEl, threadEl]));
   }
 
   function threadItem(c) {
