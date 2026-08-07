@@ -1,13 +1,24 @@
 # 🔐 Authentication — Inflate AI CRM
 
-The app ships with a **built-in login & sign-up screen** that works immediately:
+The app uses **real Supabase Auth** for login/sign-up (email + password, with Google/Apple ready to enable). Every team member's data — contacts, deals, calendars, etc. — is shared across devices once they sign in.
 
-- **Email + password login** — team members sign in with their email. Default password: `inflate2025` (change per member in *Settings → Team → 🔑 Password*).
-- **Self-service sign-up** — the *"Sign up"* link creates a new team member account and signs them in.
-- **Google & Apple buttons** — present on the screen, activated by connecting Supabase Auth (below).
+- **Self-service sign-up** — the *"Sign up"* link on the login screen creates a real Supabase Auth account **and** a matching `team_members` profile automatically (via a DB trigger — see migration `0004`).
+- **Email + password login** — signs in against Supabase Auth.
+- **Google & Apple buttons** — call Supabase OAuth; they show a short setup note until you enable the provider (below).
 - **Sign out** — from the sidebar (⏻) or *Settings → General*.
 
-> ⚠️ The built-in gate stores the session in the browser (`localStorage`). It's great for internal/agency use and demos, but it is **client-side** — it doesn't stop a determined user with devtools. For real security and for **working Google/Apple sign-in**, connect **Supabase Auth** as below.
+## ⚠️ Required one-time setting: email confirmation
+
+By default, a fresh Supabase project **requires users to confirm their email** before they can sign in, and the free built-in email sender has a **low rate limit** (a handful of emails/hour) — fine for testing, rough for onboarding a whole team quickly.
+
+**Recommended for an internal agency tool:** turn confirmation off.
+Supabase dashboard → **Authentication → Sign In / Providers → Email** → toggle **"Confirm email"** OFF.
+
+With it off, `Sign up` logs the person in immediately — no email round-trip. If you'd rather keep confirmation on, connect your own SMTP under **Authentication → Settings → SMTP Settings** to avoid the free-tier rate limit.
+
+## Old local demo accounts
+
+Earlier versions of this app used a local-only login (`you@inflate.ai` / `inflate2025`, etc.). **Those no longer work** — every teammate now needs a real account via **Sign up**. Nothing is lost: any calendars/contacts they create sync to Supabase under their real account.
 
 ---
 

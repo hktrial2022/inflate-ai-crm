@@ -101,7 +101,7 @@
     window.scrollTo(0, 0);
   }
 
-  function init() {
+  async function init() {
     // theme (applied first so the login screen is themed too)
     const savedTheme = localStorage.getItem("crm_theme") || "light";
     document.documentElement.setAttribute("data-theme", savedTheme);
@@ -127,6 +127,11 @@
 
     window.addEventListener("hashchange", route);
     if (!location.hash) location.hash = "#/dashboard";
+
+    // Public booking links never need a session — skip the resolve step so
+    // they render instantly even if Supabase is slow to respond.
+    const { route: r0 } = parseHash();
+    if (r0 !== "book" && window.CRM.auth.resolveSession) await window.CRM.auth.resolveSession();
     route();
   }
 
@@ -156,9 +161,9 @@
     document.getElementById("themeToggle").textContent = (document.documentElement.getAttribute("data-theme") === "dark") ? "☀️" : "🌙";
     applyChrome();
     renderRoute();
-    // Pull calendars (and their team refs) from Supabase so every
-    // signed-in teammate sees the same booking links, regardless of device.
-    if (window.CRM.store.syncCalendarsFromCloud) window.CRM.store.syncCalendarsFromCloud().then(() => rerender());
+    // Pull every collection from Supabase so the whole team sees the same
+    // contacts, deals, calendars, etc. regardless of device.
+    if (window.CRM.store.syncAllFromCloud) window.CRM.store.syncAllFromCloud().then(() => rerender());
   }
 
   function globalSearch(q) {

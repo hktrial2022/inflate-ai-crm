@@ -73,6 +73,72 @@
   function all(coll) { return data[coll].slice(); }
   function byId(coll, id) { return data[coll].find((x) => x.id === id); }
 
+  // ============================================================
+  // Cloud sync — every collection below follows the same pattern:
+  // save locally first (instant UI), then push to Supabase in the
+  // background. New records adopt the server-issued UUID (via
+  // remapId, cascading to anything that referenced the old local
+  // id) so later edits target the right cloud row. Never blocks or
+  // breaks the UI if Supabase is unreachable — see cloudSync().
+  // ============================================================
+  function cloudSync(fn) {
+    if (!(window.CRM.cloud && window.CRM.cloudReady)) return;
+    Promise.resolve().then(fn).catch((e) => console.warn("[cloud sync]", e.message || e));
+  }
+  function isCloudId(id) { return window.CRM.cloud && window.CRM.cloud.isUuid(id); }
+
+  const REF_MAP = {
+    contacts: [["deals", "contactId"], ["activities", "contactId"], ["messages", "contactId"], ["appointments", "contactId"]],
+    companies: [["contacts", "companyId"], ["deals", "companyId"]],
+  };
+  function remapId(collection, oldId, newId) {
+    if (!newId || oldId === newId) return;
+    const rec = byId(collection, oldId); if (!rec) return;
+    rec.id = newId;
+    (REF_MAP[collection] || []).forEach(([coll, field]) => { data[coll].forEach((r) => { if (r[field] === oldId) r[field] = newId; }); });
+    persist();
+  }
+  function cloudCreate(collection, api, rec) {
+    cloudSync(async () => { const saved = await api.insert(rec); if (saved) remapId(collection, rec.id, saved.id); });
+  }
+  function cloudUpdate(collection, api, id, patch) {
+    cloudSync(async () => {
+      const current = byId(collection, id); if (!current) return;
+      if (isCloudId(id)) await api.update(id, patch);
+      else { const saved = await api.insert(current); if (saved) remapId(collection, id, saved.id); }
+    });
+  }
+  function cloudDelete(collection, api, id) { cloudSync(() => (isCloudId(id) ? api.remove(id) : Promise.resolve())); }
+
+  // Pull every collection from Supabase and merge into the local cache
+  // (upsert by id) — called once after login so the whole team shares
+  // the same contacts, deals, calendars, etc. across every device.
+  async function syncAllFromCloud() {
+    if (!(window.CRM.cloud && window.CRM.cloudReady)) return;
+    const c = window.CRM.cloud;
+    const jobs = [
+      ["team", c.fetchTeam()], ["companies", c.companies.fetchAll()], ["contacts", c.contacts.fetchAll()],
+      ["deals", c.deals.fetchAll()], ["activities", c.activities.fetchAll()], ["messages", c.messages.fetchAll()],
+      ["appointments", c.appointments.fetchAll()], ["workflows", c.workflows.fetchAll()], ["calendars", c.calendars.fetchAll()],
+    ];
+    const results = await Promise.allSettled(jobs.map((j) => j[1]));
+    results.forEach((res, i) => {
+      const [coll] = jobs[i];
+      if (res.status !== "fulfilled") { console.warn("[cloud sync] pull failed:", coll, res.reason && res.reason.message); return; }
+      res.value.forEach((remote) => {
+        const idx = data[coll].findIndex((x) => x.id === remote.id || (coll === "calendars" && x.slug === remote.slug));
+        if (idx >= 0) data[coll][idx] = Object.assign({}, data[coll][idx], remote);
+        else data[coll].push(remote);
+      });
+    });
+    // stages use a text id and rarely change — merge by id, keep local color/name if newer edits pending
+    try {
+      const remoteStages = await c.stages.fetchAll();
+      if (remoteStages.length) data.stages = remoteStages;
+    } catch (e) { /* non-fatal */ }
+    persist();
+  }
+
   // ---------- Contacts ----------
   function addContact(c) {
     const rec = Object.assign({
@@ -80,28 +146,40 @@
       jobTitle: "", source: "website", tags: [], customFields: {}, notes: "",
       ownerId: currentUserId(), createdAt: nowISO(), lastActivityAt: nowISO(),
     }, c);
-    data.contacts.push(rec); emit(); return rec;
+    data.contacts.push(rec); emit();
+    cloudCreate("contacts", window.CRM.cloud && window.CRM.cloud.contacts, rec);
+    return rec;
   }
-  function updateContact(id, patch) { const c = byId("contacts", id); if (c) { Object.assign(c, patch); emit(); } return c; }
+  function updateContact(id, patch) {
+    const c = byId("contacts", id); if (c) { Object.assign(c, patch); emit(); cloudUpdate("contacts", window.CRM.cloud && window.CRM.cloud.contacts, id, c); }
+    return c;
+  }
   function deleteContact(id) {
     data.contacts = data.contacts.filter((x) => x.id !== id);
     data.deals = data.deals.filter((d) => d.contactId !== id);
     data.activities = data.activities.filter((a) => a.contactId !== id);
     data.messages = data.messages.filter((m) => m.contactId !== id);
     emit();
+    cloudDelete("contacts", window.CRM.cloud && window.CRM.cloud.contacts, id);
   }
 
   // ---------- Companies ----------
   function addCompany(c) {
     const rec = Object.assign({ id: uid("co"), name: "", industry: "", website: "", size: "m", notes: "", createdAt: nowISO() }, c);
-    data.companies.push(rec); emit(); return rec;
+    data.companies.push(rec); emit();
+    cloudCreate("companies", window.CRM.cloud && window.CRM.cloud.companies, rec);
+    return rec;
   }
-  function updateCompany(id, patch) { const c = byId("companies", id); if (c) { Object.assign(c, patch); emit(); } return c; }
+  function updateCompany(id, patch) {
+    const c = byId("companies", id); if (c) { Object.assign(c, patch); emit(); cloudUpdate("companies", window.CRM.cloud && window.CRM.cloud.companies, id, c); }
+    return c;
+  }
   function deleteCompany(id) {
     data.companies = data.companies.filter((x) => x.id !== id);
     data.contacts.forEach((c) => { if (c.companyId === id) c.companyId = null; });
     data.deals.forEach((d) => { if (d.companyId === id) d.companyId = null; });
     emit();
+    cloudDelete("companies", window.CRM.cloud && window.CRM.cloud.companies, id);
   }
   function contactsForCompany(id) { return data.contacts.filter((c) => c.companyId === id); }
   function dealsForCompany(id) { return data.deals.filter((d) => d.companyId === id); }
@@ -114,9 +192,14 @@
       stage: firstOpenStage(), ownerId: currentUserId(),
       status: "open", stageEnteredAt: nowISO(), createdAt: nowISO(),
     }, d);
-    data.deals.push(rec); emit(); return rec;
+    data.deals.push(rec); emit();
+    cloudCreate("deals", window.CRM.cloud && window.CRM.cloud.deals, rec);
+    return rec;
   }
-  function updateDeal(id, patch) { const d = byId("deals", id); if (d) { Object.assign(d, patch); emit(); } return d; }
+  function updateDeal(id, patch) {
+    const d = byId("deals", id); if (d) { Object.assign(d, patch); emit(); cloudUpdate("deals", window.CRM.cloud && window.CRM.cloud.deals, id, d); }
+    return d;
+  }
   function moveDeal(id, stageId) {
     const d = byId("deals", id); if (!d) return;
     d.stage = stageId; d.stageEnteredAt = nowISO();
@@ -127,6 +210,7 @@
     // touch contact activity
     if (d.contactId) { const c = byId("contacts", d.contactId); if (c) c.lastActivityAt = nowISO(); }
     emit();
+    cloudUpdate("deals", window.CRM.cloud && window.CRM.cloud.deals, id, d);
   }
   function setDealStatus(id, status) {
     const d = byId("deals", id); if (!d) return;
@@ -135,18 +219,24 @@
     if (status === "lost") d.probability = 0;
     if (status === "open") d.probability = Math.max(20, d.probability || 20);
     d.stageEnteredAt = nowISO(); emit();
+    cloudUpdate("deals", window.CRM.cloud && window.CRM.cloud.deals, id, d);
   }
-  function deleteDeal(id) { data.deals = data.deals.filter((x) => x.id !== id); emit(); }
+  function deleteDeal(id) { data.deals = data.deals.filter((x) => x.id !== id); emit(); cloudDelete("deals", window.CRM.cloud && window.CRM.cloud.deals, id); }
 
   // ---------- Activities ----------
   function addActivity(a) {
     const rec = Object.assign({ id: uid("a"), contactId: null, dealId: null, type: "task", title: "", dueAt: null, done: false, createdAt: nowISO() }, a);
     data.activities.push(rec);
     if (rec.contactId) { const c = byId("contacts", rec.contactId); if (c) c.lastActivityAt = nowISO(); }
-    emit(); return rec;
+    emit();
+    cloudCreate("activities", window.CRM.cloud && window.CRM.cloud.activities, rec);
+    return rec;
   }
-  function updateActivity(id, patch) { const a = byId("activities", id); if (a) { Object.assign(a, patch); emit(); } return a; }
-  function deleteActivity(id) { data.activities = data.activities.filter((x) => x.id !== id); emit(); }
+  function updateActivity(id, patch) {
+    const a = byId("activities", id); if (a) { Object.assign(a, patch); emit(); cloudUpdate("activities", window.CRM.cloud && window.CRM.cloud.activities, id, a); }
+    return a;
+  }
+  function deleteActivity(id) { data.activities = data.activities.filter((x) => x.id !== id); emit(); cloudDelete("activities", window.CRM.cloud && window.CRM.cloud.activities, id); }
   function activitiesForContact(id) { return data.activities.filter((a) => a.contactId === id).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); }
   function pendingForContact(id) { return activitiesForContact(id).filter((a) => !a.done); }
 
@@ -155,7 +245,9 @@
     const rec = Object.assign({ id: uid("m"), contactId: null, channel: "email", direction: "out", body: "", isInternalNote: false, assignedTo: null, createdAt: nowISO() }, m);
     data.messages.push(rec);
     if (rec.contactId) { const c = byId("contacts", rec.contactId); if (c) c.lastActivityAt = nowISO(); }
-    emit(); return rec;
+    emit();
+    cloudCreate("messages", window.CRM.cloud && window.CRM.cloud.messages, rec);
+    return rec;
   }
   function messagesForContact(id) { return data.messages.filter((m) => m.contactId === id).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)); }
   function contactsWithMessages() {
@@ -166,17 +258,24 @@
   // ---------- Workflows ----------
   function addWorkflow(w) {
     const rec = Object.assign({ id: uid("w"), name: "", active: false, trigger: null, steps: [], createdAt: nowISO() }, w);
-    data.workflows.push(rec); emit(); return rec;
+    data.workflows.push(rec); emit();
+    cloudCreate("workflows", window.CRM.cloud && window.CRM.cloud.workflows, rec);
+    return rec;
   }
-  function updateWorkflow(id, patch) { const w = byId("workflows", id); if (w) { Object.assign(w, patch); emit(); } return w; }
-  function deleteWorkflow(id) { data.workflows = data.workflows.filter((x) => x.id !== id); emit(); }
+  function updateWorkflow(id, patch) {
+    const w = byId("workflows", id); if (w) { Object.assign(w, patch); emit(); cloudUpdate("workflows", window.CRM.cloud && window.CRM.cloud.workflows, id, w); }
+    return w;
+  }
+  function deleteWorkflow(id) { data.workflows = data.workflows.filter((x) => x.id !== id); emit(); cloudDelete("workflows", window.CRM.cloud && window.CRM.cloud.workflows, id); }
 
   // ---------- Appointments ----------
   function addAppointment(a) {
     const rec = Object.assign({ id: uid("ap"), contactId: null, ownerId: null, type: "Discovery Call", startAt: null, durationMin: 30, remindSms: true, remindEmail: true, createdAt: nowISO() }, a);
-    data.appointments.push(rec); emit(); return rec;
+    data.appointments.push(rec); emit();
+    cloudCreate("appointments", window.CRM.cloud && window.CRM.cloud.appointments, rec);
+    return rec;
   }
-  function deleteAppointment(id) { data.appointments = data.appointments.filter((x) => x.id !== id); emit(); }
+  function deleteAppointment(id) { data.appointments = data.appointments.filter((x) => x.id !== id); emit(); cloudDelete("appointments", window.CRM.cloud && window.CRM.cloud.appointments, id); }
   // round-robin owner selection
   function nextRoundRobinOwner() {
     const reps = data.team.filter((m) => m.role === "sales" || m.role === "admin");
@@ -203,14 +302,6 @@
     while (data.calendars.some((c) => c.slug === candidate && c.id !== ignoreId)) { n++; candidate = slug + "-" + n; }
     return candidate;
   }
-  // Best-effort cloud sync — never blocks the UI. If Supabase isn't
-  // wired (or the request fails, e.g. offline), the app keeps working
-  // locally; the calendar just won't be visible from other devices yet.
-  function cloudSync(fn) {
-    if (!(window.CRM.cloud && window.CRM.cloudReady)) return;
-    Promise.resolve().then(fn).catch((e) => console.warn("[cloud sync]", e.message || e));
-  }
-
   function addCalendar(c) {
     const rec = Object.assign({
       id: uid("cal"), name: "", description: "", type: "personal",
@@ -290,7 +381,10 @@
     const rec = Object.assign({ id: uid("u"), name: "", email: "", role: "sales", color: colors[data.team.length % colors.length] }, m);
     data.team.push(rec); emit(); return rec;
   }
-  function updateMember(id, patch) { const m = byId("team", id); if (m) { Object.assign(m, patch); emit(); } return m; }
+  function updateMember(id, patch) {
+    const m = byId("team", id); if (m) { Object.assign(m, patch); emit(); cloudSync(() => window.CRM.cloud.updateTeamMember(id, patch)); }
+    return m;
+  }
   function deleteMember(id) { if (data.team.length <= 1) return; data.team = data.team.filter((x) => x.id !== id); emit(); }
 
   // ---------- Stages ----------
@@ -334,7 +428,7 @@
     addWorkflow, updateWorkflow, deleteWorkflow,
     addAppointment, deleteAppointment, nextRoundRobinOwner,
     addCalendar, updateCalendar, deleteCalendar, slugify, defaultBusinessHours,
-    saveCalendarToCloud, deleteCalendarFromCloud, syncCalendarsFromCloud,
+    saveCalendarToCloud, deleteCalendarFromCloud, syncCalendarsFromCloud, syncAllFromCloud,
     addMember, updateMember, deleteMember,
     updateStages, stageName,
     setSetting, exportJSON, importJSON, resetAll,
