@@ -9,7 +9,7 @@
   const t = (k, v) => window.CRM.i18n.t(k, v);
 
   const NAV = [
-    { section: "main", items: [{ id: "dashboard", ico: "📊" }] },
+    { section: "main", items: [{ id: "marco", ico: "🧭" }, { id: "dashboard", ico: "📊" }] },
     { section: "crm", items: [
       { id: "contacts", ico: "👤" }, { id: "companies", ico: "🏢" },
       { id: "pipeline", ico: "💼" }, { id: "inbox", ico: "💬" },
@@ -153,7 +153,9 @@
     store.onChange(() => { buildNav(); buildUserChip(); });
 
     window.addEventListener("hashchange", route);
-    if (!location.hash) location.hash = "#/dashboard";
+    // Marco es la puerta de entrada del producto — la primera pantalla que
+    // ve un usuario nuevo es la conversación con Marco, no el dashboard.
+    if (!location.hash) location.hash = "#/marco";
 
     // Public booking links never need a session — skip the resolve step so
     // they render instantly even if Supabase is slow to respond.

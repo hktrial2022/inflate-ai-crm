@@ -173,7 +173,7 @@
             const opts = isJoin ? { joinAccountId: ctx.joinAccountId } : { companyName: companyInput.value.trim() };
             const res = await register(nameInput.value, emailInput.value, pwInput.value, opts);
             if (!res.ok) return fail(t("auth." + res.reason));
-            location.hash = "#/dashboard"; location.reload();
+            location.hash = "#/marco"; location.reload();
           } else {
             const res = await login(emailInput.value, pwInput.value);
             if (!res.ok) { fail(t("auth." + res.reason)); pwInput.focus(); pwInput.select(); return; }

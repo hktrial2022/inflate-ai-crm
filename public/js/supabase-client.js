@@ -214,9 +214,55 @@
     return data;
   }
 
+  // ============================================================
+  // Marco — diagnóstico agéntico. sendMessage() invoca la edge
+  // function marco-chat, que corre con el JWT del propio usuario
+  // (misma RLS que el resto del CRM) y nunca ejecuta nada — solo
+  // propone decisiones/acciones que quedan pendientes de aprobación.
+  // ============================================================
+  const marco = {
+    async fetchCases() {
+      const { data, error } = await sb.from("marco_cases").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    async fetchMessages(caseId) {
+      const { data, error } = await sb.from("marco_messages").select("*").eq("case_id", caseId).order("created_at", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    async sendMessage(caseId, message) {
+      const { data, error } = await sb.functions.invoke("marco-chat", { body: { caseId, message } });
+      if (error) throw error;
+      return data;
+    },
+    async listDecisions() {
+      const { data, error } = await sb.from("marco_decisions").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    async listActions() {
+      const { data, error } = await sb.from("marco_actions").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    async approveAction(id, approvedBy) {
+      const { error } = await sb.from("marco_actions").update({ status: "approved", approved_by: approvedBy, approved_at: new Date().toISOString() }).eq("id", id);
+      if (error) throw error;
+    },
+    async rejectAction(id) {
+      const { error } = await sb.from("marco_actions").update({ status: "rejected" }).eq("id", id);
+      if (error) throw error;
+    },
+    async reviewDecision(id) {
+      const { error } = await sb.from("marco_decisions").update({ status: "reviewed" }).eq("id", id);
+      if (error) throw error;
+    },
+  };
+
   window.CRM.cloud = {
     sb, signIn, signUp, signOut, getSession, signInWithOAuth, joinAccount, fetchProfile, ensureProfile,
-    companies, contacts, deals, activities, messages, appointments, workflows, calendars, stages, accounts,
+    companies, contacts, deals, activities, messages, appointments, workflows, calendars, stages, accounts, marco,
     setAdminAccount, clearAdminAccount, getAdminAccount, getAdminAccountName,
     fetchTeam, updateTeamMember, isUuid, uuidOrNull,
     // legacy names kept for booking.js compatibility
