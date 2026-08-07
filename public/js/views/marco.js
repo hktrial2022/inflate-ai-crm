@@ -108,10 +108,27 @@
   }
 
   function msgBubble(m) {
-    return h("div.msg." + (m.role === "user" ? "out" : "in"), [
-      m.content,
+    return h("div.msg." + (m.role === "user" ? "out" : "in"), { html: mdToHtml(m.content) }, [
       h("div.msg-meta", [ui.fmtDateTime ? ui.fmtDateTime(m.created_at) : ui.relTime(m.created_at)]),
     ]);
+  }
+
+  // Minimal, safe markdown → HTML for Marco's replies: escapes the raw
+  // text first (so nothing user/model-supplied can inject real tags),
+  // then only ever introduces a fixed set of safe tags around that
+  // escaped text. Supports **bold**, blank-line paragraphs, and "- "
+  // bullet lists — the shapes Marco's system prompt actually produces.
+  function mdToHtml(text) {
+    const esc = String(text == null ? "" : text)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const inline = (s) => s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    return esc.split(/\n{2,}/).map((block) => {
+      const lines = block.split("\n").filter((l) => l.trim().length);
+      if (lines.length && lines.every((l) => /^[-*]\s+/.test(l))) {
+        return "<ul>" + lines.map((l) => "<li>" + inline(l.replace(/^[-*]\s+/, "")) + "</li>").join("") + "</ul>";
+      }
+      return "<p>" + lines.map(inline).join("<br>") + "</p>";
+    }).join("");
   }
 
   function pendingPanel() {
