@@ -31,7 +31,7 @@
   function emptyData() {
     return {
       contacts: [], companies: [], deals: [], activities: [], messages: [],
-      workflows: [], appointments: [],
+      workflows: [], appointments: [], calendars: [],
       team: DEFAULT_TEAM.map((x) => ({ ...x })),
       stages: DEFAULT_STAGES.map((s) => ({ ...s, name: { ...s.name } })),
       settings: { currency: "USD", theme: localStorage.getItem("crm_theme") || "light" },
@@ -189,6 +189,61 @@
     return best.id;
   }
 
+  // ---------- Calendars (booking) ----------
+  function defaultBusinessHours() {
+    const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+    const bh = {};
+    days.forEach((d) => { bh[d] = { enabled: d !== "sat" && d !== "sun", from: "09:00", to: "17:00" }; });
+    return bh;
+  }
+  function slugify(s) { return (s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""); }
+  function uniqueSlug(base, ignoreId) {
+    let slug = slugify(base) || "calendar";
+    let n = 1, candidate = slug;
+    while (data.calendars.some((c) => c.slug === candidate && c.id !== ignoreId)) { n++; candidate = slug + "-" + n; }
+    return candidate;
+  }
+  function addCalendar(c) {
+    const rec = Object.assign({
+      id: uid("cal"), name: "", description: "", type: "personal",
+      memberIds: [], slug: "", durationValue: 30, durationUnit: "minutes",
+      seatsPerClass: 1, location: "custom", locationCustom: "", businessHours: defaultBusinessHours(), createdAt: nowISO(),
+      // basic details
+      logo: "", group: "", inviteTitle: "{{contact.name}}", color: "#178af6",
+      // availability
+      recurring: false, timezone: "America/Mexico_City",
+      // booking rules
+      intervalValue: 30, intervalUnit: "minutes",
+      minNoticeValue: 1, minNoticeUnit: "days",
+      dateRangeValue: 30, dateRangeUnit: "days",
+      preBufferValue: 0, preBufferUnit: "minutes", postBufferValue: 0, postBufferUnit: "minutes",
+      maxPerDay: null, maxPerSlot: 1, lookBusy: false, lookBusyPct: 0,
+      // form & confirmation
+      formPreset: "default", widgetOrder: ["datetime", "form"], stickyContacts: false,
+      consent: true, consentText: "", addGuests: false,
+      confirmType: "default", redirectUrl: "", thankYouMsg: "", metaPixel: "", autoConfirm: true,
+      // payments
+      acceptPayments: false, paymentAmount: 0,
+      // notifications & policies
+      statusLabels: true, assignContacts: true, skipAssign: false,
+      allowReschedule: true, rescheduleExpireValue: 0, rescheduleExpireUnit: "minutes",
+      allowCancel: true, cancelExpireValue: 0, cancelExpireUnit: "minutes",
+      allowThirdParty: true, inviteNotes: "",
+      // widget appearance
+      coverImage: "", widgetStyle: "neo", primaryColor: "#178af6", backgroundColor: "#ffffff",
+      buttonText: "", showTitle: true, showDescription: true, showDetails: true, customCode: "",
+    }, c);
+    rec.slug = uniqueSlug(rec.slug || rec.name, rec.id);
+    data.calendars.push(rec); emit(); return rec;
+  }
+  function updateCalendar(id, patch) {
+    const c = byId("calendars", id); if (!c) return null;
+    Object.assign(c, patch);
+    if (patch.slug != null) c.slug = uniqueSlug(patch.slug || c.name, id);
+    emit(); return c;
+  }
+  function deleteCalendar(id) { data.calendars = data.calendars.filter((x) => x.id !== id); emit(); }
+
   // ---------- Team ----------
   function addMember(m) {
     const colors = ["#6d5efc", "#0ea5e9", "#16a34a", "#f59e0b", "#ef4444", "#a855f7", "#14b8a6"];
@@ -238,6 +293,7 @@
     addMessage, messagesForContact, contactsWithMessages,
     addWorkflow, updateWorkflow, deleteWorkflow,
     addAppointment, deleteAppointment, nextRoundRobinOwner,
+    addCalendar, updateCalendar, deleteCalendar, slugify, defaultBusinessHours,
     addMember, updateMember, deleteMember,
     updateStages, stageName,
     setSetting, exportJSON, importJSON, resetAll,

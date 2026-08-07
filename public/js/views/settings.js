@@ -16,8 +16,151 @@
       teamCard(),
     ]));
     root.appendChild(h("div.mt-16", stagesCard()));
+    root.appendChild(h("div.mt-16", calendarsCard()));
     root.appendChild(h("div.mt-16", dataCard()));
   }
+
+  // ---------------- Calendars ----------------
+  const CAL_TYPES = [
+    { id: "personal",   ico: "👤", multi: false, seats: false, location: true },
+    { id: "round_robin",ico: "🔁", multi: true,  seats: false, location: false },
+    { id: "class",      ico: "👥", multi: false, seats: true,  location: true },
+    { id: "collective", ico: "🧑‍🤝‍🧑", multi: true,  seats: false, location: false },
+  ];
+  function calType(id) { return CAL_TYPES.find((x) => x.id === id) || CAL_TYPES[0]; }
+  const tc = (k, v) => window.CRM.i18n.t("calendars." + k, v);
+
+  function calendarsCard() {
+    const store = S();
+    const cals = store.data.calendars;
+    return h("div.card.card-pad", [
+      h("div.flex.between.mb-8", [h("h3", { style: { fontSize: "15px" } }, "📅 " + tc("title")),
+        h("button.btn.btn-sm.btn-primary", { onclick: chooseType }, "＋ " + tc("new"))]),
+      h("p.faint.mb-16", { style: { fontSize: "12.5px" } }, tc("sub")),
+      cals.length ? h("div", { style: { display: "flex", flexDirection: "column", gap: "8px" } }, cals.map((c) => calRow(c)))
+        : h("div.empty", { style: { padding: "28px" } }, [h("div.emoji", { style: { fontSize: "30px" } }, "📅"), h("h3", tc("none")), h("p", tc("noneSub"))]),
+    ]);
+  }
+
+  function calRow(c) {
+    const store = S();
+    const type = calType(c.type);
+    const members = (c.memberIds || []).map((id) => store.member(id)).filter(Boolean);
+    const url = bookingUrl(c);
+    return h("div.flex.between", { style: { padding: "12px", background: "var(--bg-sunken)", borderRadius: "10px", gap: "10px", flexWrap: "wrap" } }, [
+      h("div.flex", { style: { gap: "11px", minWidth: 0 } }, [
+        h("div.avatar", { style: { background: c.color || "var(--brand-1)", borderRadius: "10px" } }, type.ico),
+        h("div", { style: { minWidth: 0 } }, [
+          h("div.flex", { style: { gap: "8px", flexWrap: "wrap" } }, [h("strong", c.name || tc("new")), h("span.tag.brand", tc("types." + c.type + ".name"))]),
+          h("div.faint", { style: { fontSize: "12px", marginTop: "2px" } }, [
+            "🔗 /widget/bookings/" + c.slug, " · ", (c.durationValue || 30) + " " + tc("minutes").toLowerCase(),
+            members.length ? " · " + members.length + " " + tc(members.length === 1 ? "member" : "members") : "",
+          ]),
+        ]),
+      ]),
+      h("div.flex", { style: { gap: "6px" } }, [
+        members.length ? h("div.avatar-stack", members.slice(0, 4).map((m) => ui.avatar(m, "sm"))) : null,
+        h("button.btn.btn-sm.btn-ghost", { title: tc("copyLink"), onclick: () => copyLink(url) }, "🔗"),
+        h("button.btn.btn-sm.btn-ghost", { title: t("caledit.advanced"), onclick: () => (location.hash = "#/calendar/" + c.id) }, "⚙️"),
+        h("button.btn.btn-sm.btn-ghost", { onclick: () => quickForm(c) }, "✏️"),
+        h("button.btn.btn-sm.btn-ghost", { onclick: () => ui.confirm(t("common.deleteConfirm"), () => { store.deleteCalendar(c.id); ui.toast(t("common.deleted"), "success"); window.CRM.app.rerender(); }) }, "🗑️"),
+      ]),
+    ]);
+  }
+
+  function bookingUrl(c) { return location.origin + location.pathname + "#/book/" + c.slug; }
+  function copyLink(url) {
+    try { navigator.clipboard.writeText(url); ui.toast(tc("copied"), "success"); }
+    catch (e) { ui.toast(url); }
+  }
+
+  // Step 1: choose a calendar type
+  function chooseType() {
+    const m = ui.modal({ title: tc("chooseType"), icon: "📅", wide: true });
+    m.setBody(h("div.grid.grid-2", CAL_TYPES.map((tp) =>
+      h("div.card.card-pad.type-card", { onclick: () => { m.close(); quickForm(null, tp.id); } }, [
+        h("div.flex", { style: { gap: "10px", alignItems: "center", marginBottom: "8px" } }, [
+          h("div.avatar", { style: { background: "var(--brand-grad)", borderRadius: "10px" } }, tp.ico),
+          h("strong", tc("types." + tp.id + ".name")),
+        ]),
+        h("p.faint", { style: { fontSize: "12.5px", margin: 0 } }, tc("types." + tp.id + ".desc")),
+      ]))));
+  }
+
+  // Step 2: quick "New calendar" modal (matches the reference screens per type)
+  function quickForm(existing, typeId) {
+    const store = S();
+    const type = calType(existing ? existing.type : typeId);
+    const c = existing ? Object.assign({}, existing, { memberIds: (existing.memberIds || []).slice() })
+      : store.addCalendar ? Object.assign({ type: type.id, memberIds: [], name: "", slug: "", description: "", durationValue: 30, durationUnit: "minutes", seatsPerClass: 1, locationCustom: "" }, {}) : {};
+    let showDesc = !!(c.description);
+    const m = ui.modal({ title: (existing ? t("caledit.edit") : tc("new")), icon: "📅" });
+
+    const descField = h("div.field.full.hidden", [h("label", tc("description")), ui.textarea(c.description, { placeholder: tc("descriptionPh"), oninput: (e) => (c.description = e.target.value) })]);
+    const addDescLink = h("span.link", { onclick: () => { showDesc = !showDesc; descField.classList.toggle("hidden", !showDesc); addDescLink.classList.toggle("hidden", showDesc); } }, "＋ " + tc("addDescription"));
+    if (showDesc) { descField.classList.remove("hidden"); addDescLink.classList.add("hidden"); }
+
+    // member selector: single (select) or multi (chips)
+    const memberControl = type.multi
+      ? memberChips(c.memberIds, (ids) => (c.memberIds = ids))
+      : ui.select([{ value: "", label: tc("pleaseSelect") }].concat(store.data.team.map((mm) => ({ value: mm.id, label: mm.name }))), c.memberIds[0] || "", (v) => (c.memberIds = v ? [v] : []));
+
+    const slugInput = ui.input(c.slug, { placeholder: "my-calendar", oninput: (e) => (c.slug = e.target.value) });
+
+    const body = h("div", { style: { display: "flex", flexDirection: "column", gap: "16px" } }, [
+      h("div.field", [h("label", tc("name")), ui.input(c.name, { placeholder: tc("namePh"), oninput: (e) => { c.name = e.target.value; if (!c.slug) slugInput.value = store.slugify(c.name); } })]),
+      addDescLink, descField,
+      h("div.field", [h("label", type.multi ? tc("selectMembers") : tc("selectMember")), memberControl]),
+      h("div.field", [h("label", tc("customUrl")), h("div.url-field", [h("span.url-prefix", "/widget/bookings/"), slugInput])]),
+      h("div.flex", { style: { gap: "12px", alignItems: "flex-end" } }, [
+        h("div.field", { style: { flex: 1 } }, [h("label", tc("duration")), ui.input(c.durationValue, { type: "number", min: "5", oninput: (e) => (c.durationValue = Number(e.target.value) || 30) })]),
+        h("div.field", { style: { width: "140px" } }, [h("label", " "), ui.select([{ value: "minutes", label: tc("minutes") }, { value: "hours", label: tc("hours") }], c.durationUnit, (v) => (c.durationUnit = v))]),
+      ]),
+      type.seats ? h("div.field", [h("label", tc("seatsPerClass")), ui.input(c.seatsPerClass, { type: "number", min: "1", oninput: (e) => (c.seatsPerClass = Number(e.target.value) || 1) })]) : null,
+      type.location ? h("div.field", [h("label", tc("meetingLocation")), ui.input(c.locationCustom, { placeholder: tc("locationPh"), oninput: (e) => (c.locationCustom = e.target.value) })]) : null,
+      h("p.faint", { style: { fontSize: "12px", margin: 0 } }, "To further customize your business hours, please head to the advanced settings."),
+    ]);
+    m.setBody(body);
+
+    function save(goAdvanced) {
+      if (!c.name) { ui.toast(t("common.required") + ": " + tc("name"), "error"); return; }
+      if (!c.memberIds || !c.memberIds.length) { ui.toast(tc("selectAtLeastOne"), "error"); return; }
+      let saved;
+      if (existing) { saved = store.updateCalendar(existing.id, c); ui.toast(t("common.saved"), "success"); }
+      else { saved = store.addCalendar(c); ui.toast(t("common.created"), "success"); }
+      m.close();
+      if (goAdvanced && saved) location.hash = "#/calendar/" + saved.id;
+      else window.CRM.app.rerender();
+    }
+
+    m.setFooter([
+      h("button.btn.btn-ghost", { style: { marginRight: "auto", color: "var(--brand-1)" }, onclick: () => save(true) }, "⚙️ " + tc("advanced")),
+      h("button.btn", { onclick: m.close }, t("common.cancel")),
+      h("button.btn.btn-primary", { onclick: () => save(false) }, tc("confirm")),
+    ]);
+  }
+
+  // multi-select team members as toggle chips
+  function memberChips(selectedIds, onChange) {
+    const store = S();
+    selectedIds = (selectedIds || []).slice();
+    const wrap = h("div.flex.wrap", { style: { gap: "8px" } });
+    function render() {
+      ui.clear(wrap);
+      store.data.team.forEach((mm) => {
+        const on = selectedIds.includes(mm.id);
+        wrap.appendChild(h("button.member-chip" + (on ? ".on" : ""), { type: "button", onclick: () => {
+          if (on) selectedIds = selectedIds.filter((x) => x !== mm.id); else selectedIds.push(mm.id);
+          onChange(selectedIds.slice()); render();
+        } }, [ui.avatar(mm, "sm"), h("span", mm.name), on ? h("span", "✓") : null]));
+      });
+    }
+    render();
+    return wrap;
+  }
+
+  // exposed for the calendar editor to reuse
+  window.CRM.settingsHelpers = { CAL_TYPES: CAL_TYPES, calType: calType, memberChips: memberChips, bookingUrl: bookingUrl, copyLink: copyLink };
 
   function generalCard() {
     const store = S();

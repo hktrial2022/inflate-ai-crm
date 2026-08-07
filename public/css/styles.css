@@ -422,6 +422,55 @@ table.data tbody tr:hover { background: var(--bg-sunken); }
 .logout-btn:hover { background: rgba(239,68,68,.25); border-color: rgba(239,68,68,.4); color: #fff; }
 @media (max-width: 820px) { .login-screen { grid-template-columns: 1fr; } .login-brand { display: none; } }
 
+/* ---------- Calendars (Settings) ---------- */
+.type-card { cursor: pointer; transition: border-color .15s, transform .05s; }
+.type-card:hover { border-color: var(--brand-1); transform: translateY(-2px); }
+.url-field { display: flex; align-items: stretch; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--bg-elev); }
+.url-field:focus-within { border-color: var(--brand-1); box-shadow: 0 0 0 3px var(--ring); }
+.url-prefix { display: flex; align-items: center; padding: 0 12px; background: var(--bg-sunken); color: var(--text-dim); font-size: 13px; font-weight: 600; white-space: nowrap; border-right: 1px solid var(--border); }
+.url-field input { border: none; box-shadow: none !important; border-radius: 0; flex: 1; }
+.member-chip { display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px 5px 5px; border-radius: 30px; border: 1px solid var(--border); background: var(--bg-elev); font-size: 13px; font-weight: 600; color: var(--text); }
+.member-chip:hover { border-color: var(--border-strong); }
+.member-chip.on { border-color: var(--brand-1); background: color-mix(in srgb, var(--brand-1) 10%, transparent); color: var(--brand-1); }
+
+/* ---------- Calendar editor (full page) ---------- */
+.cal-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+.cal-header-title { flex: 1; text-align: center; font-size: 18px; font-weight: 800; letter-spacing: -.02em; }
+.cal-editor { display: grid; grid-template-columns: 230px 1fr; gap: 20px; align-items: start; }
+.cal-nav { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px; box-shadow: var(--shadow); position: sticky; top: 90px; }
+.cal-nav-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; border: none; background: none; border-radius: 9px; font-size: 13.5px; font-weight: 600; color: var(--text-dim); text-align: left; }
+.cal-nav-item:hover { background: var(--bg-sunken); color: var(--text); }
+.cal-nav-item.active { background: color-mix(in srgb, var(--brand-1) 12%, transparent); color: var(--brand-1); }
+.cal-nav-group { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-faint); font-weight: 700; padding: 12px 12px 6px; }
+.cal-tip-wrap { margin-top: 14px; }
+.cal-tip:not(:empty) { background: var(--bg-sunken); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+.cal-panel { min-width: 0; }
+
+/* switch toggle */
+.switch { width: 38px; height: 22px; border-radius: 20px; background: var(--border-strong); border: none; padding: 0; position: relative; flex-shrink: 0; transition: background .18s; cursor: pointer; }
+.switch.on { background: var(--brand-1); }
+.switch-knob { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .18s; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+.switch.on .switch-knob { transform: translateX(16px); }
+.toggle-row { display: flex; align-items: flex-start; gap: 12px; }
+.toggle-row strong { font-size: 13.5px; font-weight: 600; }
+
+.num-unit { display: grid; grid-template-columns: 1fr 130px; gap: 8px; }
+.stepper { display: flex; align-items: stretch; gap: 8px; max-width: 220px; }
+.stepper input { flex: 1; }
+.stepper-btns { display: flex; gap: 4px; }
+.stepper-btns button { width: 38px; border: 1px solid var(--border); background: var(--bg-elev); border-radius: 9px; font-size: 18px; font-weight: 600; color: var(--text); }
+.stepper-btns button:hover { border-color: var(--brand-1); color: var(--brand-1); }
+.color-field { display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 10px; padding: 4px 10px; background: var(--bg-elev); }
+.color-field input[type="color"] { border-radius: 6px; overflow: hidden; }
+.color-field input:not([type="color"]) { border: none; box-shadow: none !important; padding-left: 4px; }
+.swatch { width: 30px; height: 30px; border-radius: 8px; border: 2px solid transparent; cursor: pointer; color: #fff; font-size: 12px; display: grid; place-items: center; }
+.swatch.on { border-color: var(--text); box-shadow: 0 0 0 2px var(--bg-elev), 0 0 0 4px var(--brand-1); }
+.uploader { border: 1.5px dashed var(--border-strong); border-radius: 12px; padding: 26px; text-align: center; cursor: pointer; background: var(--bg-elev); }
+.uploader:hover { border-color: var(--brand-1); }
+.field-error { color: var(--red); font-size: 12.5px; font-weight: 600; }
+.order-item { flex: 1; border: 1px solid var(--border); border-radius: 9px; padding: 10px 12px; background: var(--bg-sunken); font-weight: 600; font-size: 13px; }
+@media (max-width: 900px) { .cal-editor { grid-template-columns: 1fr; } .cal-nav { position: static; } .num-unit { grid-template-columns: 1fr 110px; } }
+
 /* Scrollbars */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 20px; border: 2px solid var(--bg); }
