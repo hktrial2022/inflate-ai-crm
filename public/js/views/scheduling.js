@@ -20,6 +20,9 @@
       h("span.pill.blue", "🔁 " + t("scheduling.roundRobin")),
     ]));
 
+    // Booking calendars configured in Settings (the link source shared with clients)
+    root.appendChild(bookingCalendarsCard());
+
     const left = h("div.card.card-pad", [
       h("h3.mb-16", { style: { fontSize: "15px" } }, "📅 " + t("scheduling.bookingPage")),
       monthHeader(),
@@ -34,6 +37,42 @@
     ]);
 
     root.appendChild(h("div.detail-grid", [left, right]));
+  }
+
+  function bookingCalendarsCard() {
+    const store = S();
+    const cals = store.data.calendars || [];
+    const helpers = window.CRM.settingsHelpers || {};
+    return h("div.card.card-pad.mb-16", [
+      h("div.flex.between.mb-8", [
+        h("h3", { style: { fontSize: "15px" } }, "🔗 " + t("scheduling.bookingCalendars")),
+        h("button.btn.btn-sm", { onclick: () => (location.hash = "#/settings") }, "⚙️ " + t("nav.settings")),
+      ]),
+      h("p.faint.mb-16", { style: { fontSize: "12.5px" } }, t("scheduling.calendarsSub")),
+      cals.length ? h("div", { style: { display: "flex", flexDirection: "column", gap: "8px" } }, cals.map((c) => {
+        const type = helpers.calType ? helpers.calType(c.type) : { ico: "📅" };
+        const url = helpers.bookingUrl ? helpers.bookingUrl(c) : (location.origin + location.pathname + "#/book/" + c.slug);
+        const members = (c.memberIds || []).map((id) => store.member(id)).filter(Boolean);
+        return h("div.flex.between", { style: { padding: "12px", background: "var(--bg-sunken)", borderRadius: "10px", gap: "10px", flexWrap: "wrap" } }, [
+          h("div.flex", { style: { gap: "11px", minWidth: 0 } }, [
+            h("div.avatar", { style: { background: c.color || "var(--brand-1)", borderRadius: "10px" } }, type.ico || "📅"),
+            h("div", { style: { minWidth: 0 } }, [
+              h("strong", c.name),
+              h("div.faint", { style: { fontSize: "12px" } }, "🔗 …/#/book/" + c.slug + " · " + (c.durationValue || 30) + " " + t("scheduling.minutes")),
+            ]),
+          ]),
+          h("div.flex", { style: { gap: "6px" } }, [
+            members.length ? h("div.avatar-stack", members.slice(0, 4).map((m) => ui.avatar(m, "sm"))) : null,
+            h("button.btn.btn-sm.btn-ghost", { title: t("scheduling.copyLink"), onclick: () => { try { navigator.clipboard.writeText(url); ui.toast(t("calendars.copied"), "success"); } catch (e) { ui.toast(url); } } }, "🔗"),
+            h("button.btn.btn-sm.btn-ghost", { title: t("scheduling.preview"), onclick: () => window.open(url, "_blank") }, "👁️"),
+            h("button.btn.btn-sm.btn-ghost", { title: t("scheduling.manage"), onclick: () => (location.hash = "#/calendar/" + c.id) }, "⚙️"),
+          ]),
+        ]);
+      })) : h("div.flex", { style: { gap: "10px", alignItems: "center" } }, [
+        h("span.faint", t("scheduling.noCalendarsYet")),
+        h("button.btn.btn-sm.btn-primary", { onclick: () => (location.hash = "#/settings") }, "＋ " + t("scheduling.createCalendar")),
+      ]),
+    ]);
   }
 
   function monthHeader() {

@@ -107,19 +107,7 @@
     document.documentElement.setAttribute("data-theme", savedTheme);
     window.CRM.i18n.setLang(window.CRM.i18n.getLang());
 
-    // ---- Auth gate: no session → show login screen and stop here ----
-    if (!window.CRM.auth.isLoggedIn()) {
-      document.getElementById("app").style.display = "none";
-      window.CRM.auth.showLogin();
-      return;
-    }
-    document.getElementById("app").style.display = "flex";
-    document.getElementById("login-root").style.display = "none";
-    document.getElementById("themeToggle").textContent = savedTheme === "dark" ? "☀️" : "🌙";
-
-    applyChrome();
-
-    // topbar handlers
+    // one-time topbar handlers
     document.getElementById("themeToggle").addEventListener("click", () => {
       const next = (document.documentElement.getAttribute("data-theme") === "dark") ? "light" : "dark";
       setTheme(next); rerender();
@@ -137,8 +125,36 @@
     // storage → re-render badges when data changes
     store.onChange(() => { buildNav(); buildUserChip(); });
 
-    window.addEventListener("hashchange", renderRoute);
+    window.addEventListener("hashchange", route);
     if (!location.hash) location.hash = "#/dashboard";
+    route();
+  }
+
+  // Top-level dispatcher: public booking page → login gate → app
+  function route() {
+    const { route: r, id } = parseHash();
+    const appEl = document.getElementById("app");
+    const loginEl = document.getElementById("login-root");
+    const pubEl = document.getElementById("public-root");
+
+    // ---- Public, no-login booking widget: #/book/<slug> ----
+    if (r === "book") {
+      appEl.style.display = "none"; loginEl.style.display = "none"; pubEl.style.display = "block";
+      window.CRM.views.booking.render(pubEl, { slug: id });
+      return;
+    }
+    pubEl.style.display = "none";
+
+    // ---- Auth gate ----
+    if (!window.CRM.auth.isLoggedIn()) {
+      appEl.style.display = "none";
+      window.CRM.auth.showLogin();
+      return;
+    }
+    loginEl.style.display = "none";
+    appEl.style.display = "flex";
+    document.getElementById("themeToggle").textContent = (document.documentElement.getAttribute("data-theme") === "dark") ? "☀️" : "🌙";
+    applyChrome();
     renderRoute();
   }
 
