@@ -10,7 +10,7 @@
   const { h } = ui;
   const t = (k, v) => window.CRM.i18n.t("marco." + k, v);
 
-  const state = { cases: [], activeCaseId: null, messages: [], decisions: [], actions: [], loaded: false, sending: false, pendingImage: null };
+  const state = { cases: [], activeCaseId: null, messages: [], decisions: [], actions: [], loaded: false, sending: false, pendingImage: null, optimisticMessage: null };
   const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
 
   function render(root, params) {
@@ -92,9 +92,11 @@
   }
 
   function conversationPane() {
-    const bodyEl = h("div.thread-body", state.messages.length
-      ? state.messages.map((m) => msgBubble(m))
+    const displayMessages = state.optimisticMessage ? [...state.messages, state.optimisticMessage] : state.messages;
+    const bodyEl = h("div.thread-body", displayMessages.length
+      ? displayMessages.map((m) => msgBubble(m))
       : [h("p.faint", { style: { textAlign: "center", margin: "auto" } }, t("startPrompt"))]);
+    if (state.sending) bodyEl.appendChild(typingBubble());
 
     // Messages + the pending-approvals panel scroll together as one region
     // so the panel's length (can be long) never pushes the composer below
@@ -111,11 +113,18 @@
   function msgBubble(m) {
     const bubble = h("div.msg." + (m.role === "user" ? "out" : "in"));
     if (m.image_url) bubble.appendChild(h("img.msg-image", { src: m.image_url }));
-    const textEl = h("div");
-    textEl.innerHTML = mdToHtml(m.content);
-    bubble.appendChild(textEl);
+    bubble.appendChild(richText(m.content));
     bubble.appendChild(h("div.msg-meta", [ui.fmtDateTime ? ui.fmtDateTime(m.created_at) : ui.relTime(m.created_at)]));
     return bubble;
+  }
+
+  // Reused anywhere Marco's own free text shows up outside a chat bubble
+  // (e.g. the pending-decision cards below) so it never falls back to one
+  // dense, unbroken paragraph.
+  function richText(text) {
+    const el = h("div");
+    el.innerHTML = mdToHtml(text);
+    return el;
   }
 
   // Minimal, safe markdown → HTML for Marco's replies: escapes the raw
@@ -136,6 +145,34 @@
     }).join("");
   }
 
+  function typingBubble() {
+    return h("div.msg.in.msg-typing", [
+      h("span.typing-dots", [h("span"), h("span"), h("span")]),
+      h("span.typing-label", t("typing")),
+    ]);
+  }
+
+  // Renders a propose_action payload (a flat object from Claude's tool
+  // call, e.g. {owner, titulo, descripcion, ...}) as one labeled line per
+  // field instead of a raw JSON.stringify blob — that's unreadable once a
+  // field like "descripcion" runs a few sentences long.
+  function payloadList(payload) {
+    if (!payload || typeof payload !== "object") return h("div.faint", { style: { fontSize: "12.5px" } }, String(payload ?? ""));
+    const entries = Object.entries(payload).filter(([, v]) => v != null && v !== "");
+    if (!entries.length) return null;
+    return h("div.faint.payload-list", entries.map(([key, value]) =>
+      h("div.payload-row", [
+        h("span.payload-key", humanizeKey(key) + ": "),
+        h("span", typeof value === "object" ? JSON.stringify(value) : String(value)),
+      ]),
+    ));
+  }
+
+  function humanizeKey(key) {
+    const label = key.replace(/_/g, " ");
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  }
+
   function pendingPanel() {
     const pendingDecisions = state.decisions.filter((d) => d.status === "pending");
     const pendingActions = state.actions.filter((a) => a.status === "proposed");
@@ -143,15 +180,15 @@
 
     return h("div.card.card-pad.mt-8", [
       h("div.section-title", t("pendingTitle")),
-      ...pendingDecisions.map((d) => h("div.mt-8", { style: { borderLeft: "3px solid var(--amber)", paddingLeft: "10px" } }, [
+      ...pendingDecisions.map((d) => h("div.mt-8.pending-card", { style: { borderLeft: "3px solid var(--amber)", paddingLeft: "10px" } }, [
         h("div", { style: { fontWeight: 600 } }, d.decision),
-        h("div.faint", { style: { fontSize: "12.5px" } }, d.problem),
+        h("div.faint.pending-body", richText(d.problem)),
         d.due_date ? h("div.faint", { style: { fontSize: "11.5px" } }, t("dueDate") + ": " + d.due_date) : null,
         h("button.btn.btn-sm.btn-ghost.mt-8", { onclick: () => reviewDecision(d.id) }, t("markReviewed")),
       ])),
-      ...pendingActions.map((a) => h("div.mt-8", { style: { borderLeft: "3px solid var(--brand, #6d5efc)", paddingLeft: "10px" } }, [
+      ...pendingActions.map((a) => h("div.mt-8.pending-card", { style: { borderLeft: "3px solid var(--brand, #6d5efc)", paddingLeft: "10px" } }, [
         h("div", { style: { fontWeight: 600 } }, a.action_type),
-        h("div.faint", { style: { fontSize: "12.5px" } }, JSON.stringify(a.payload)),
+        payloadList(a.payload),
         h("div.flex.mt-8", { style: { gap: "6px" } }, [
           h("button.btn.btn-sm.btn-primary", { onclick: () => approveAction(a.id) }, "✓ " + t("approve")),
           h("button.btn.btn-sm.btn-ghost", { onclick: () => rejectAction(a.id) }, "✕ " + t("reject")),
@@ -251,6 +288,11 @@
     const image = state.pendingImage;
     if ((!text && !image) || state.sending) return;
     state.sending = true;
+    // Show the user's own message immediately instead of leaving the
+    // thread looking frozen until the full round-trip (evidence + Claude
+    // + persistence) comes back — same idea as Slack/WhatsApp showing your
+    // message right away, then a typing indicator for the other side.
+    state.optimisticMessage = { role: "user", content: text || t("imageAttached"), image_url: image ? image.dataUrl : null, created_at: new Date().toISOString() };
     window.CRM.app.rerender();
     // Claude with adaptive thinking + the propose_* tool loop can genuinely
     // take a while, but the send button must never get stuck disabled
@@ -265,7 +307,7 @@
         await refreshCaseData();
       })
       .catch((e) => ui.toast(e.message || String(e), "error"))
-      .finally(() => { state.sending = false; window.CRM.app.rerender(); });
+      .finally(() => { state.sending = false; state.optimisticMessage = null; window.CRM.app.rerender(); });
   }
 
   window.CRM.views.marco = { render };

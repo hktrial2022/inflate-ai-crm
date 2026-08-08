@@ -139,10 +139,18 @@ Deno.serve(async (req) => {
     }
 
     // ---------- Evidence: aggregates only, never raw contact rows ----------
-    const [{ count: contactsCount }, deals, { count: overdueCount }] = await Promise.all([
+    const [{ count: contactsCount }, deals, { count: overdueCount }, pastDecisions, pastActions] = await Promise.all([
       sb.from("contacts").select("id", { count: "exact", head: true }),
       sb.from("deals").select("stage, status"),
       sb.from("activities").select("id", { count: "exact", head: true }).eq("done", false).lt("due_at", new Date().toISOString()),
+      // Memory across conversations: this is account-wide (not scoped to
+      // this case), bounded, and curated — not the raw transcript of past
+      // cases, which would grow unbounded and cost more with every message
+      // ever sent. Doctrine: "una anécdota no es doctrina" — a decision
+      // earns a place in memory once it's been proposed, not once it's
+      // been chatted about at length.
+      sb.from("marco_decisions").select("problem, decision, status, due_date, review_date, created_at").order("created_at", { ascending: false }).limit(15),
+      sb.from("marco_actions").select("action_type, payload, status, created_at").eq("status", "approved").order("created_at", { ascending: false }).limit(15),
     ]);
     const stageCounts: Record<string, number> = {};
     (deals.data || []).forEach((d: { stage: string | null; status: string }) => {
@@ -154,6 +162,8 @@ Deno.serve(async (req) => {
       `Evidencia agregada de esta cuenta (no PII): ${contactsCount ?? 0} contactos totales; ` +
       `negocios abiertos por etapa: ${JSON.stringify(stageCounts)}; ` +
       `${overdueCount ?? 0} actividades vencidas sin completar.`;
+
+    const memory = buildMemoryBlock(pastDecisions.data || [], pastActions.data || []);
 
     // ---------- Load history + persist the incoming user message ----------
     const { data: history } = await sb
@@ -169,7 +179,7 @@ Deno.serve(async (req) => {
     // Only the current turn's image is ever sent to Claude — past images
     // aren't replayed from history on every subsequent call, or token cost
     // would grow with every image ever attached to the conversation.
-    const currentText = `${evidence}\n\nMensaje del usuario: ${message}`;
+    const currentText = `${evidence}\n\n${memory}\n\nMensaje del usuario: ${message}`;
     const currentContent: Anthropic.MessageParam["content"] = image?.dataUrl
       ? [imageBlockFromDataUrl(image.dataUrl), { type: "text", text: currentText }]
       : currentText;
@@ -252,6 +262,30 @@ function json(body: unknown, status = 200) {
     status,
     headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
   });
+}
+
+// Memory across conversations. Bounded and structured (decisions +
+// approved actions), not a dump of past transcripts — see the doctrine
+// note at the call site. Told explicitly not to re-litigate what's here.
+function buildMemoryBlock(
+  decisions: { problem: string; decision: string; status: string; due_date: string | null; review_date: string | null; created_at: string }[],
+  actions: { action_type: string; payload: unknown; status: string; created_at: string }[],
+): string {
+  if (!decisions.length && !actions.length) {
+    return "Memoria: esta cuenta no tiene decisiones ni acciones previas registradas — es la primera vez que se diagnostica.";
+  }
+  const decisionLines = decisions.map((d) =>
+    `- [${d.status}] Problema: ${d.problem} → Decisión: ${d.decision}` +
+    (d.review_date ? ` (revisión: ${d.review_date})` : d.due_date ? ` (plazo: ${d.due_date})` : ""),
+  );
+  const actionLines = actions.map((a) => `- ${a.action_type}: ${JSON.stringify(a.payload)} (aprobada ${a.created_at.slice(0, 10)})`);
+  return (
+    "Memoria de esta cuenta — decisiones y acciones de conversaciones anteriores. " +
+    "No repitas preguntas ya resueltas aquí ni vuelvas a proponer lo mismo, a menos que haya evidencia de que la situación cambió:\n" +
+    (decisionLines.length ? "Decisiones:\n" + decisionLines.join("\n") : "Decisiones: ninguna todavía.") +
+    "\n" +
+    (actionLines.length ? "Acciones aprobadas:\n" + actionLines.join("\n") : "Acciones aprobadas: ninguna todavía.")
+  );
 }
 
 // Parses "data:image/jpeg;base64,<data>" (as produced by the client's
