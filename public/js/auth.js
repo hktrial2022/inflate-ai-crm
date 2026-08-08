@@ -65,6 +65,16 @@
       localStorage.setItem(ACCOUNT_TAG_KEY, thisAccountTag);
     }
 
+    // Admin-mode ("entering" a sub-account) is a super-admin-only, per-browser
+    // localStorage flag. If it's ever set for anyone else — most commonly
+    // because a super admin used this browser earlier and logout() didn't
+    // clear it, or a normal user is now signing in on that same browser —
+    // drop it immediately so the orange "viewing as admin" banner and the
+    // account_id override it applies never leak into a normal account.
+    if (profile.role !== "super_admin" && window.CRM.cloud.getAdminAccount && window.CRM.cloud.getAdminAccount()) {
+      window.CRM.cloud.clearAdminAccount();
+    }
+
     const existing = store.byId("team", profile.id);
     if (existing) Object.assign(existing, profile); else store.data.team.push(profile);
     localStorage.setItem(SESSION_KEY, profile.id);
@@ -97,7 +107,7 @@
 
   async function logout() {
     const c = cloud();
-    if (c) { try { await c.signOut(); } catch (e) {} }
+    if (c) { try { await c.signOut(); } catch (e) {} if (c.clearAdminAccount) c.clearAdminAccount(); }
     localStorage.removeItem(SESSION_KEY);
     location.reload();
   }

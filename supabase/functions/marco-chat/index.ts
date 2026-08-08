@@ -123,7 +123,8 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const message = (body.message || "").trim();
-    if (!message) return json({ error: "empty_message" }, 400);
+    const image = body.image as { dataUrl?: string; name?: string } | undefined;
+    if (!message && !image?.dataUrl) return json({ error: "empty_message" }, 400);
 
     // ---------- Resolve or create the case ----------
     let caseId = body.caseId as string | undefined;
@@ -161,16 +162,24 @@ Deno.serve(async (req) => {
       .eq("case_id", caseId)
       .order("created_at", { ascending: true });
 
-    await sb.from("marco_messages").insert({ case_id: caseId, role: "user", content: message });
+    await sb.from("marco_messages").insert({ case_id: caseId, role: "user", content: message, image_url: image?.dataUrl || null });
 
     const anthropic = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY") });
+
+    // Only the current turn's image is ever sent to Claude — past images
+    // aren't replayed from history on every subsequent call, or token cost
+    // would grow with every image ever attached to the conversation.
+    const currentText = `${evidence}\n\nMensaje del usuario: ${message}`;
+    const currentContent: Anthropic.MessageParam["content"] = image?.dataUrl
+      ? [imageBlockFromDataUrl(image.dataUrl), { type: "text", text: currentText }]
+      : currentText;
 
     const messages: Anthropic.MessageParam[] = [
       ...(history || []).map((m: { role: string; content: string }) => ({
         role: (m.role === "marco" ? "assistant" : "user") as "assistant" | "user",
         content: m.content,
       })),
-      { role: "user", content: `${evidence}\n\nMensaje del usuario: ${message}` },
+      { role: "user", content: currentContent },
     ];
 
     const createdDecisions: unknown[] = [];
@@ -243,4 +252,16 @@ function json(body: unknown, status = 200) {
     status,
     headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
   });
+}
+
+// Parses "data:image/jpeg;base64,<data>" (as produced by the client's
+// canvas.toDataURL) into a Claude vision content block.
+function imageBlockFromDataUrl(dataUrl: string): Anthropic.ImageBlockParam {
+  const match = /^data:(image\/[a-zA-Z+.-]+);base64,(.+)$/.exec(dataUrl);
+  if (!match) throw new Error("invalid_image");
+  const [, mediaType, data] = match;
+  return {
+    type: "image",
+    source: { type: "base64", media_type: mediaType as "image/jpeg" | "image/png" | "image/gif" | "image/webp", data },
+  };
 }

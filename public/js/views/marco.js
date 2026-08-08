@@ -10,7 +10,8 @@
   const { h } = ui;
   const t = (k, v) => window.CRM.i18n.t("marco." + k, v);
 
-  const state = { cases: [], activeCaseId: null, messages: [], decisions: [], actions: [], loaded: false, sending: false };
+  const state = { cases: [], activeCaseId: null, messages: [], decisions: [], actions: [], loaded: false, sending: false, pendingImage: null };
+  const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
 
   function render(root, params) {
     const cloud = window.CRM.cloud;
@@ -108,9 +109,13 @@
   }
 
   function msgBubble(m) {
-    return h("div.msg." + (m.role === "user" ? "out" : "in"), { html: mdToHtml(m.content) }, [
-      h("div.msg-meta", [ui.fmtDateTime ? ui.fmtDateTime(m.created_at) : ui.relTime(m.created_at)]),
-    ]);
+    const bubble = h("div.msg." + (m.role === "user" ? "out" : "in"));
+    if (m.image_url) bubble.appendChild(h("img.msg-image", { src: m.image_url }));
+    const textEl = h("div");
+    textEl.innerHTML = mdToHtml(m.content);
+    bubble.appendChild(textEl);
+    bubble.appendChild(h("div.msg-meta", [ui.fmtDateTime ? ui.fmtDateTime(m.created_at) : ui.relTime(m.created_at)]));
+    return bubble;
   }
 
   // Minimal, safe markdown → HTML for Marco's replies: escapes the raw
@@ -169,18 +174,93 @@
   function buildComposer() {
     const ta = h("textarea.textarea", { style: { minHeight: "56px", flex: 1 }, placeholder: t("typeMessage"), disabled: state.sending });
     const send = h("button.btn.btn-primary", { disabled: state.sending, onclick: () => sendMessage(ta) }, state.sending ? "…" : t("send"));
-    ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) sendMessage(ta); });
-    return h("div.composer", [h("div.composer-row", [ta, send])]);
+    // Enter sends (standard chat convention); Shift+Enter inserts a newline.
+    ta.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(ta); }
+    });
+
+    const rowChildren = [buildMicButton(ta), buildAttachButton(), ta, send].filter(Boolean);
+    return h("div.composer", [
+      state.pendingImage ? attachmentPreview() : null,
+      h("div.composer-row", rowChildren),
+    ]);
+  }
+
+  function attachmentPreview() {
+    return h("div.composer-attachment", [
+      h("img", { src: state.pendingImage.dataUrl }),
+      h("span", state.pendingImage.name || t("imageAttached")),
+      h("span.remove", { onclick: () => { state.pendingImage = null; window.CRM.app.rerender(); } }, "✕"),
+    ]);
+  }
+
+  function buildMicButton(ta) {
+    if (!SpeechRecognitionCtor) return null; // not supported on this browser — no button, no broken promise
+    const btn = h("button.btn.btn-ghost", { type: "button", title: t("voiceInput"), disabled: state.sending, style: { flexShrink: 0 } }, "🎤");
+    let recognition = null;
+    btn.addEventListener("click", () => {
+      if (recognition) { recognition.stop(); return; }
+      recognition = new SpeechRecognitionCtor();
+      recognition.lang = window.CRM.i18n.getLang() === "es" ? "es-MX" : "en-US";
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+      recognition.onstart = () => { btn.classList.add("recording"); btn.textContent = "⏺"; };
+      recognition.onerror = () => ui.toast(t("voiceError"), "error");
+      recognition.onresult = (e) => {
+        const transcript = Array.from(e.results).map((r) => r[0].transcript).join(" ");
+        ta.value = (ta.value ? ta.value.trim() + " " : "") + transcript;
+        ta.focus();
+      };
+      recognition.onend = () => { recognition = null; btn.classList.remove("recording"); btn.textContent = "🎤"; };
+      recognition.start();
+    });
+    return btn;
+  }
+
+  function buildAttachButton() {
+    const input = h("input", { type: "file", accept: "image/*", style: { display: "none" }, onchange: (e) => handleImagePick(e.target.files[0]) });
+    const btn = h("button.btn.btn-ghost", { type: "button", title: t("attachImage"), disabled: state.sending, style: { flexShrink: 0 }, onclick: () => input.click() }, "📎");
+    return h("span", [btn, input]);
+  }
+
+  // Downscales client-side before it ever touches the network or a Claude
+  // request — a phone photo can be 4000px+/several MB, and neither the
+  // edge function payload nor Claude's vision input needs that fidelity.
+  function handleImagePick(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 1280;
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        state.pendingImage = { dataUrl: canvas.toDataURL("image/jpeg", 0.75), name: file.name };
+        window.CRM.app.rerender();
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
   }
 
   function sendMessage(ta) {
     const text = ta.value.trim();
-    if (!text || state.sending) return;
+    const image = state.pendingImage;
+    if ((!text && !image) || state.sending) return;
     state.sending = true;
     window.CRM.app.rerender();
-    window.CRM.cloud.marco.sendMessage(state.activeCaseId, text)
+    // Claude with adaptive thinking + the propose_* tool loop can genuinely
+    // take a while, but the send button must never get stuck disabled
+    // forever if a request hangs — race it against a hard ceiling so
+    // state.sending always gets released one way or another.
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error(t("timeoutError"))), 90000));
+    Promise.race([window.CRM.cloud.marco.sendMessage(state.activeCaseId, text || t("imageAttached"), image), timeout])
       .then(async (res) => {
         state.activeCaseId = res.caseId;
+        state.pendingImage = null;
         if (!state.cases.find((c) => c.id === res.caseId)) state.cases = await window.CRM.cloud.marco.fetchCases();
         await refreshCaseData();
       })

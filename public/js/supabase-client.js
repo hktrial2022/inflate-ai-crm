@@ -231,8 +231,11 @@
       if (error) throw error;
       return data || [];
     },
-    async sendMessage(caseId, message) {
-      const { data, error } = await sb.functions.invoke("marco-chat", { body: { caseId, message } });
+    // image: { dataUrl, name } — already downscaled client-side (see marco.js).
+    async sendMessage(caseId, message, image) {
+      const body = { caseId, message };
+      if (image) body.image = { dataUrl: image.dataUrl, name: image.name };
+      const { data, error } = await sb.functions.invoke("marco-chat", { body });
       if (error) throw error;
       return data;
     },
