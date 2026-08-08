@@ -62,7 +62,7 @@
 
     const card = h("div.book-card");
     shell.appendChild(card);
-    shell.appendChild(h("div.book-powered", [t("poweredBy") + " ", h("strong", "Inflate AI"), " 🎈"]));
+    shell.appendChild(h("div.book-powered", [t("poweredBy") + " ", h("strong", "Marco"), " 🧭"]));
 
     function header() {
       return h("div.book-head", { style: { borderTopColor: accent } }, [

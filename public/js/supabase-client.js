@@ -1,5 +1,5 @@
 /* ============================================================
-   Supabase client — full cloud backend for Inflate AI CRM.
+   Supabase client — full cloud backend for Marco.
    ------------------------------------------------------------
    Real Supabase Auth (email/password + Google/Apple) plus cloud
    sync for every collection: contacts, companies, deals,

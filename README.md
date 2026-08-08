@@ -1,6 +1,6 @@
-# 🎈 Inflate AI CRM
+# 🧭 Marco
 
-A lean, powerful, **bilingual (English / Español)** CRM built for the **Inflate AI** marketing agency.
+An AI COO that diagnoses your business and turns decisions into action — backed by a lean, powerful, **bilingual (English / Español)** CRM.
 It runs **100% locally** with **zero build step and zero dependencies** — just open it in a browser — and ships ready to deploy to **GitHub → Vercel** with an optional **Supabase** backend.
 
 > The database starts **completely empty** — no dummy contacts, companies or deals. Add your real leads and watch the analytics come to life.
@@ -97,4 +97,4 @@ Your local data can be moved over anytime via **Settings → Export data (JSON)*
 
 Vanilla JavaScript (ES5-safe classic scripts), a hand-built CSS design system, and inline-SVG charts. No React, no bundler, no `node_modules` required to run. Chosen deliberately so the app is dependency-free, fast, and trivially deployable.
 
-Built for **Inflate AI**. 🎈
+🧭

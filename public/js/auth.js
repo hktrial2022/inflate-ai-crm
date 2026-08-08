@@ -229,8 +229,8 @@
       const langToggle = h("button.login-lang", { onclick: () => { window.CRM.i18n.setLang(window.CRM.i18n.getLang() === "en" ? "es" : "en"); render(); } }, window.CRM.i18n.getLang() === "en" ? "🇲🇽 Español" : "🇺🇸 English");
       const screen = h("div.login-screen", [
         h("div.login-brand", [langToggle, h("div.login-brand-inner", [
-          h("div.login-logo", "IA"), h("h2.login-brand-name", "Inflate AI"), h("p.login-tagline", t("auth.tagline")),
-          h("div.login-features", [feature("📊", "Dashboard"), feature("👤", t("nav.contacts")), feature("💼", t("nav.pipeline")), feature("💬", t("nav.inbox"))]),
+          h("div.login-logo", "🧭"), h("h2.login-brand-name", "Marco"), h("p.login-tagline", t("auth.tagline")),
+          h("div.login-features", [feature("🧭", t("nav.marco")), feature("📊", "Dashboard"), feature("👤", t("nav.contacts")), feature("💼", t("nav.pipeline"))]),
         ]), h("div.login-blob login-blob-1"), h("div.login-blob login-blob-2")]),
         h("div.login-panel", form),
       ]);

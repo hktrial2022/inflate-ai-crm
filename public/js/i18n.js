@@ -7,7 +7,7 @@
 
   const DICT = {
     en: {
-      app: { tagline: "CRM", name: "Inflate AI CRM" },
+      app: { tagline: "AI COO", name: "Marco" },
       nav: {
         main: "Main", crm: "CRM", growth: "Growth",
         marco: "Marco", dashboard: "Dashboard", contacts: "Contacts", companies: "Companies",
@@ -120,7 +120,7 @@
         noCalendarsYet: "No booking calendars yet.", createCalendar: "Create a calendar", preview: "Preview", manage: "Manage", copyLink: "Copy link",
       },
       settings: {
-        title: "Settings", sub: "Configure your CRM to match how Inflate AI sells.",
+        title: "Settings", sub: "Configure your CRM to match how your business sells.",
         general: "General", language: "Language", theme: "Theme",
         light: "Light", dark: "Dark", team: "Team members", addMember: "Add member",
         stages: "Pipeline stages", customStages: "Customize your sales stages",
@@ -138,9 +138,9 @@
         aboutStorage: "Cloud storage", supabaseNote: "Your data lives in Supabase, scoped to your account, plus a local cache on this device for speed.",
       },
       auth: {
-        tagline: "The growth engine for your agency.",
-        welcome: "Welcome back", subtitle: "Sign in to your Inflate AI CRM",
-        welcomeSignUp: "Create your account", subtitleSignUp: "Join your team on Inflate AI CRM",
+        tagline: "Your AI Chief Operating Officer.",
+        welcome: "Welcome back", subtitle: "Sign in to Marco",
+        welcomeSignUp: "Create your account", subtitleSignUp: "Join your team on Marco",
         name: "Full name", email: "Email", password: "Password", confirmPassword: "Confirm password",
         signIn: "Sign in", signUp: "Create account", signingIn: "Signing in…",
         rememberMe: "Keep me signed in", forgot: "Forgot password?",
@@ -267,7 +267,7 @@
         payNote: "Payment of {amount} is required to confirm (placeholder).", step: "Step",
       },
       admin: {
-        title: "Agency Admin", sub: "Every sub-account on Inflate AI CRM — each one fully independent and isolated.",
+        title: "Agency Admin", sub: "Every sub-account on Marco — each one fully independent and isolated.",
         viewing: "Viewing: {name} (Admin mode)", exit: "Exit", alreadySignedIn: "You're already signed in.",
         noAccounts: "No sub-accounts yet", noAccountsSub: "They'll appear here the moment a company signs up.",
         company: "Company", owner: "Owner", created: "Created", members: "Members", contacts: "Contacts",
@@ -296,7 +296,7 @@
     },
 
     es: {
-      app: { tagline: "CRM", name: "Inflate AI CRM" },
+      app: { tagline: "COO con IA", name: "Marco" },
       nav: {
         main: "Principal", crm: "CRM", growth: "Crecimiento",
         marco: "Marco", dashboard: "Panel", contacts: "Contactos", companies: "Empresas",
@@ -409,7 +409,7 @@
         noCalendarsYet: "Aún no hay calendarios de reserva.", createCalendar: "Crear un calendario", preview: "Vista previa", manage: "Gestionar", copyLink: "Copiar enlace",
       },
       settings: {
-        title: "Ajustes", sub: "Configura tu CRM según cómo vende Inflate AI.",
+        title: "Ajustes", sub: "Configura tu CRM según cómo vende tu negocio.",
         general: "General", language: "Idioma", theme: "Tema",
         light: "Claro", dark: "Oscuro", team: "Miembros del equipo", addMember: "Agregar miembro",
         stages: "Etapas del embudo", customStages: "Personaliza tus etapas de venta",
@@ -427,9 +427,9 @@
         aboutStorage: "Almacenamiento en la nube", supabaseNote: "Tus datos viven en Supabase, acotados a tu cuenta, más un caché local en este dispositivo por velocidad.",
       },
       auth: {
-        tagline: "El motor de crecimiento de tu agencia.",
-        welcome: "Bienvenido de nuevo", subtitle: "Inicia sesión en tu Inflate AI CRM",
-        welcomeSignUp: "Crea tu cuenta", subtitleSignUp: "Únete a tu equipo en Inflate AI CRM",
+        tagline: "Tu COO con inteligencia artificial.",
+        welcome: "Bienvenido de nuevo", subtitle: "Inicia sesión en Marco",
+        welcomeSignUp: "Crea tu cuenta", subtitleSignUp: "Únete a tu equipo en Marco",
         name: "Nombre completo", email: "Correo", password: "Contraseña", confirmPassword: "Confirmar contraseña",
         signIn: "Iniciar sesión", signUp: "Crear cuenta", signingIn: "Entrando…",
         rememberMe: "Mantener sesión iniciada", forgot: "¿Olvidaste tu contraseña?",
@@ -555,7 +555,7 @@
         payNote: "Se requiere un pago de {amount} para confirmar (marcador).", step: "Paso",
       },
       admin: {
-        title: "Admin de la Agencia", sub: "Todas las subcuentas de Inflate AI CRM — cada una totalmente independiente y aislada.",
+        title: "Admin de la Agencia", sub: "Todas las subcuentas de Marco — cada una totalmente independiente y aislada.",
         viewing: "Viendo: {name} (Modo admin)", exit: "Salir", alreadySignedIn: "Ya tienes una sesión iniciada.",
         noAccounts: "Aún no hay subcuentas", noAccountsSub: "Aparecerán aquí en cuanto una empresa se registre.",
         company: "Empresa", owner: "Dueño", created: "Creada", members: "Miembros", contacts: "Contactos",
